@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ConstructionManagement.Maui.Views.DashboardPage"
+             Title="Project overview" BackgroundColor="{StaticResource Paper}">
+    <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
+        <ScrollView>
+            <VerticalStackLayout Padding="24,28" Spacing="18">
+                <Label Text="FIELDLINE" TextColor="#7F9A89" FontSize="11" FontAttributes="Bold" />
+                <Label Text="Project overview" TextColor="{StaticResource Ink}" FontSize="30" FontAttributes="Bold" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Border Grid.Column="0" BackgroundColor="White" Stroke="#E2E8E2" Padding="16"><VerticalStackLayout><Label Text="Active projects" TextColor="#71807A" FontSize="12" /><Label Text="{Binding Projects.Count}" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource Ink}" /></VerticalStackLayout></Border>
+                    <Border Grid.Column="1" BackgroundColor="White" Stroke="#E2E8E2" Padding="16"><VerticalStackLayout><Label Text="Field updates" TextColor="#71807A" FontSize="12" /><Label Text="Ready" FontSize="26" FontAttributes="Bold" TextColor="{StaticResource Green}" /></VerticalStackLayout></Border>
+                </Grid>
+                <Label Text="Active projects" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource Ink}" Margin="0,10,0,0" />
+                <CollectionView ItemsSource="{Binding Projects}" EmptyView="No projects returned from the API yet.">
+                    <CollectionView.ItemTemplate><DataTemplate><Border BackgroundColor="White" Stroke="#E2E8E2" Padding="16" Margin="0,0,0,10"><Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"><VerticalStackLayout><Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{StaticResource Ink}" /><Label Text="{Binding ClientName}" TextColor="#71807A" FontSize="12" /></VerticalStackLayout><Label Grid.Column="1" Text="{Binding Status}" TextColor="{StaticResource Green}" FontSize="12" /><ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Progress="{Binding ProgressPercent, Converter={StaticResource ProgressConverter}}" ProgressColor="{StaticResource Green}" Margin="0,14,0,0" /></Grid></Border></DataTemplate></CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>

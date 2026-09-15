@@ -1,0 +1,88 @@
+﻿<Window x:Class="ConstructionManagement.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Fieldline | Construction Operations"
+        Height="820" Width="1400" MinHeight="680" MinWidth="1050"
+        Background="#F5F7F3" WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#1C2927" />
+        <SolidColorBrush x:Key="Muted" Color="#71807A" />
+        <SolidColorBrush x:Key="Line" Color="#E2E8E2" />
+        <SolidColorBrush x:Key="Green" Color="#2D765B" />
+        <SolidColorBrush x:Key="Nav" Color="#203430" />
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#B9C9BE" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="15,11" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#E2E8E2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="238" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="{StaticResource Nav}">
+            <DockPanel Margin="15,27,15,18">
+                <StackPanel DockPanel.Dock="Top">
+                    <StackPanel Orientation="Horizontal" Margin="13,0,0,52">
+                        <Border BorderBrush="#A7CFB0" BorderThickness="2" Width="25" Height="25"><TextBlock Text="F" Foreground="#A7CFB0" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="fieldline" Foreground="White" FontSize="21" FontWeight="Bold" Margin="9,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="WORKSPACE" Foreground="#91A89C" FontSize="10" FontWeight="Bold" Margin="13,0,0,6" />
+                    <TextBlock Text="West Coast Build Co." Foreground="White" FontSize="13" Margin="13,0,0,28" />
+                    <Button Style="{StaticResource NavButton}" Background="#365149" Foreground="White" Content="▦   Overview" Click="Overview_Click" />
+                    <Button Style="{StaticResource NavButton}" Content="◫   Projects                                      3" Click="Module_Click" Tag="Projects" />
+                    <Button Style="{StaticResource NavButton}" Content="◷   Schedule" Click="Module_Click" Tag="Schedule" />
+                    <Button Style="{StaticResource NavButton}" Content="□   Documents" Click="Module_Click" Tag="Documents" />
+                    <Button Style="{StaticResource NavButton}" Content="♙   Team" Click="Module_Click" Tag="Team" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button Style="{StaticResource NavButton}" Content="⚙   Settings" Click="Module_Click" Tag="Settings" />
+                    <Border BorderBrush="#3C554B" BorderThickness="0,1,0,0" Margin="10,10,10,0" Padding="0,17,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="29" Height="29" Fill="#D3E6D6" />
+                            <StackPanel Margin="9,0,0,0"><TextBlock Text="Jordan Miles" Foreground="White" FontSize="11" FontWeight="SemiBold" /><TextBlock Text="Project director" Foreground="#92AA9E" FontSize="10" Margin="0,3,0,0" /></StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="52,0,52,50">
+                <Grid Height="83"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Monday, September 11, 2026   ·   Week 37" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" /><StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button Content="⌕" FontSize="22" Background="Transparent" BorderThickness="0" Margin="0,0,18,0" Click="Search_Click" /><Button Content="♧" FontSize="20" Background="Transparent" BorderThickness="0" Margin="0,0,18,0" Click="Notifications_Click" /><Button Content="＋  New project" Background="{StaticResource Green}" Foreground="White" BorderThickness="0" Padding="16,11" FontWeight="Bold" Click="NewProject_Click" /></StackPanel></Grid>
+                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" />
+                <Grid Margin="0,45,0,31"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="GOOD MORNING, JORDAN" Foreground="#7F9A89" FontSize="10" FontWeight="Bold" /><TextBlock Text="Project overview" Foreground="{StaticResource Ink}" FontSize="31" FontWeight="Bold" Margin="0,8,0,0" /></StackPanel><Button Grid.Column="1" Content="This week     ⌄" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="14,10" Click="DateFilter_Click" /></Grid>
+                <UniformGrid Columns="4">
+                    <Border Style="{StaticResource Card}" Margin="0,0,13,0" Padding="20"><StackPanel><TextBlock Text="Active projects" Foreground="{StaticResource Muted}" FontSize="11" /><TextBlock x:Name="ActiveProjectsText" Text="03" Foreground="{StaticResource Ink}" FontSize="25" FontWeight="Bold" Margin="0,15,0,10" /><TextBlock Text="↗  1 from last month" Foreground="{StaticResource Green}" FontSize="10" /></StackPanel></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,13,0" Padding="20"><StackPanel><TextBlock Text="Tasks due this week" Foreground="{StaticResource Muted}" FontSize="11" /><TextBlock Text="18" Foreground="{StaticResource Ink}" FontSize="25" FontWeight="Bold" Margin="0,15,0,10" /><TextBlock Text="●  4 due today" Foreground="#C7783C" FontSize="10" /></StackPanel></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,13,0" Padding="20"><StackPanel><TextBlock Text="Budget committed" Foreground="{StaticResource Muted}" FontSize="11" /><TextBlock x:Name="BudgetCommittedText" Text="$2.84M" Foreground="{StaticResource Ink}" FontSize="25" FontWeight="Bold" Margin="0,15,0,10" /><TextBlock x:Name="TotalBudgetText" Text="of $4.1M total budget" Foreground="{StaticResource Muted}" FontSize="10" /></StackPanel></Border>
+                    <Border Style="{StaticResource Card}" Padding="20"><StackPanel><TextBlock Text="Safety incidents" Foreground="{StaticResource Muted}" FontSize="11" /><TextBlock Text="00" Foreground="{StaticResource Ink}" FontSize="25" FontWeight="Bold" Margin="0,15,0,10" /><TextBlock Text="No incidents this month" Foreground="{StaticResource Green}" FontSize="10" /></StackPanel></Border>
+                </UniformGrid>
+                <Grid Margin="0,42,0,16"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Active projects" FontSize="17" FontWeight="Bold" /><TextBlock Text="Keep an eye on progress across your portfolio." Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" /></StackPanel><Button Grid.Column="1" Content="View all projects  →" Foreground="{StaticResource Green}" Background="Transparent" BorderThickness="0" FontWeight="Bold" Click="Projects_Click" /></Grid>
+                <StackPanel x:Name="ProjectListPanel" />
+                <Border x:Name="SeedProjectsPanel" Visibility="Collapsed" Style="{StaticResource Card}"><StackPanel>
+                    <Grid Margin="20,17"><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="110" /><ColumnDefinition Width="1*" /></Grid.ColumnDefinitions><Border Width="36" Height="36" Background="#DBE9DF" CornerRadius="5"><TextBlock Text="R" Foreground="{StaticResource Green}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Riverside Medical Pavilion" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="Portland, OR" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,5,0,0" /></StackPanel><StackPanel Grid.Column="2" VerticalAlignment="Center"><DockPanel><TextBlock Text="Overall progress" Foreground="{StaticResource Muted}" FontSize="9" /><TextBlock Text="68%" DockPanel.Dock="Right" FontSize="9" FontWeight="Bold" /></DockPanel><ProgressBar Value="68" Height="5" Margin="0,7,15,0" Foreground="#5D9A76" Background="#EAF0EB" BorderThickness="0" /></StackPanel><TextBlock Grid.Column="3" Text="●  On track" Foreground="{StaticResource Green}" FontSize="10" VerticalAlignment="Center" Margin="18,0,0,0" /><StackPanel Grid.Column="4" VerticalAlignment="Center"><TextBlock Text="NEXT UP" Foreground="#9AA59F" FontSize="8" FontWeight="Bold" /><TextBlock Text="Concrete pour · Sep 14" FontSize="10" Margin="0,5,0,0" /></StackPanel></Grid>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" />
+                    <Grid Margin="20,17"><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="110" /><ColumnDefinition Width="1*" /></Grid.ColumnDefinitions><Border Width="36" Height="36" Background="#F1E6D9" CornerRadius="5"><TextBlock Text="N" Foreground="#B06B36" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Northline Apartments" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="Tacoma, WA" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,5,0,0" /></StackPanel><StackPanel Grid.Column="2" VerticalAlignment="Center"><DockPanel><TextBlock Text="Overall progress" Foreground="{StaticResource Muted}" FontSize="9" /><TextBlock Text="42%" DockPanel.Dock="Right" FontSize="9" FontWeight="Bold" /></DockPanel><ProgressBar Value="42" Height="5" Margin="0,7,15,0" Foreground="#D18A4C" Background="#F2EDE7" BorderThickness="0" /></StackPanel><TextBlock Grid.Column="3" Text="●  Needs review" Foreground="#C7783C" FontSize="10" VerticalAlignment="Center" Margin="18,0,0,0" /><StackPanel Grid.Column="4" VerticalAlignment="Center"><TextBlock Text="NEXT UP" Foreground="#9AA59F" FontSize="8" FontWeight="Bold" /><TextBlock Text="Permit review · Sep 12" FontSize="10" Margin="0,5,0,0" /></StackPanel></Grid>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" />
+                    <Grid Margin="20,17"><Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="110" /><ColumnDefinition Width="1*" /></Grid.ColumnDefinitions><Border Width="36" Height="36" Background="#E7E4D6" CornerRadius="5"><TextBlock Text="C" Foreground="#69714C" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Cedar Street Retail" FontWeight="SemiBold" FontSize="12" /><TextBlock Text="Eugene, OR" Foreground="{StaticResource Muted}" FontSize="10" Margin="0,5,0,0" /></StackPanel><StackPanel Grid.Column="2" VerticalAlignment="Center"><DockPanel><TextBlock Text="Overall progress" Foreground="{StaticResource Muted}" FontSize="9" /><TextBlock Text="84%" DockPanel.Dock="Right" FontSize="9" FontWeight="Bold" /></DockPanel><ProgressBar Value="84" Height="5" Margin="0,7,15,0" Foreground="#5D9A76" Background="#EAF0EB" BorderThickness="0" /></StackPanel><TextBlock Grid.Column="3" Text="●  On track" Foreground="{StaticResource Green}" FontSize="10" VerticalAlignment="Center" Margin="18,0,0,0" /><StackPanel Grid.Column="4" VerticalAlignment="Center"><TextBlock Text="NEXT UP" Foreground="#9AA59F" FontSize="8" FontWeight="Bold" /><TextBlock Text="Final inspection · Sep 18" FontSize="10" Margin="0,5,0,0" /></StackPanel></Grid>
+                </StackPanel></Border>
+                <Grid Margin="0,42,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="1.15*" /><ColumnDefinition Width=".85*" /></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,7,0" Padding="22"><StackPanel><Grid><StackPanel><TextBlock Text="Today's schedule" FontSize="17" FontWeight="Bold" /><TextBlock Text="Monday, September 11" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" /></StackPanel><Button Grid.Column="1" Content="Open calendar  →" Foreground="{StaticResource Green}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" FontWeight="Bold" Click="Schedule_Click" /></Grid><Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Margin="0,18,0,0" /><TextBlock Text="08:00     ●   Safety walk                                      JT" FontSize="11" Margin="0,16,0,0" /><TextBlock Text="10:30     ●   Subcontractor sync                             MS" FontSize="11" Margin="0,18,0,0" /><TextBlock Text="13:00     ●   Materials delivery                              AK" FontSize="11" Margin="0,18,0,0" /><TextBlock Text="15:30     ●   Owner update                                   JT" FontSize="11" Margin="0,18,0,4" /></StackPanel></Border>
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0,0,0" Padding="22"><StackPanel><Grid><StackPanel><TextBlock Text="Team pulse" FontSize="17" FontWeight="Bold" /><TextBlock Text="Across all active projects" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" /></StackPanel><TextBlock Grid.Column="1" Text="82%" Foreground="{StaticResource Green}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Right" /></Grid><UniformGrid Columns="7" Height="115" VerticalAlignment="Bottom" Margin="0,20,0,0"><ProgressBar Value="46" /><ProgressBar Value="62" /><ProgressBar Value="54" /><ProgressBar Value="78" /><ProgressBar Value="68" /><ProgressBar Value="91" Foreground="{StaticResource Green}" /><ProgressBar Value="82" /></UniformGrid><TextBlock Text="↗  6% higher than last week" Foreground="{StaticResource Green}" FontSize="10" Margin="0,16,0,0" /></StackPanel></Border>
+                </Grid>
+                <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,18,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

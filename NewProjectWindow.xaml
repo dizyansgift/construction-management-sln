@@ -1,0 +1,40 @@
+<Window x:Class="ConstructionManagement.NewProjectWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New project" Width="510" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F5F7F3">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#1C2927" />
+        <SolidColorBrush x:Key="Muted" Color="#71807A" />
+        <SolidColorBrush x:Key="Green" Color="#2D765B" />
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="BorderBrush" Value="#D8E1DA" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="28">
+        <TextBlock Text="CREATE NEW PROJECT" Foreground="#7F9A89" FontSize="10" FontWeight="Bold" />
+        <TextBlock Text="Project details" Foreground="{StaticResource Ink}" FontSize="25" FontWeight="Bold" Margin="0,8,0,4" />
+        <TextBlock Text="Set up the project record before adding estimates and team members." Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" />
+        <TextBlock Text="Project name *" Foreground="{StaticResource Ink}" FontSize="11" Margin="0,24,0,0" />
+        <TextBox x:Name="ProjectNameTextBox" />
+        <TextBlock Text="Customer" Foreground="{StaticResource Ink}" FontSize="11" Margin="0,14,0,0" />
+        <TextBox x:Name="CustomerTextBox" />
+        <TextBlock Text="Site location" Foreground="{StaticResource Ink}" FontSize="11" Margin="0,14,0,0" />
+        <TextBox x:Name="LocationTextBox" />
+        <TextBlock Text="Estimated budget" Foreground="{StaticResource Ink}" FontSize="11" Margin="0,14,0,0" />
+        <TextBox x:Name="BudgetTextBox" />
+        <TextBlock x:Name="ValidationText" Foreground="#B34D3C" FontSize="11" Margin="0,12,0,0" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Cancel" Click="Cancel_Click" />
+            <Button Content="Create project" Background="{StaticResource Green}" Foreground="White" BorderThickness="0" Click="Create_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,6 @@
+@ConstructionManagement.Api_HostAddress = http://localhost:5183
+
+GET {{ConstructionManagement.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
