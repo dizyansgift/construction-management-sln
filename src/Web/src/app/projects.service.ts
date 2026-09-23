@@ -18,7 +18,7 @@ export interface Project {
 @Injectable({ providedIn: 'root' })
 export class ProjectsService {
   private readonly http = inject(HttpClient);
-  private readonly endpoint = 'http://localhost:5000/api/projects';
+  private readonly endpoint = '/api/projects';
 
   getProjects(): Observable<Project[]> {
     return this.http.get<Project[]>(this.endpoint).pipe(catchError(() => of([])));

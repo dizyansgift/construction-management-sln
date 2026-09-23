@@ -1,0 +1,32 @@
+services:
+  # ASP.NET Core API, built from the existing Dockerfile
+  - type: web
+    name: construction-management-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.vercel
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/projects
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__Provider
+        value: Sqlite
+      - key: CONSTRUCTION_JWT_KEY
+        generateValue: true
+
+  # Angular dashboard, served as a static site
+  - type: web
+    name: construction-management-web
+    runtime: static
+    buildCommand: cd src/Web && npm ci && npm run build
+    staticPublishPath: src/Web/dist/web/browser
+    routes:
+      # Proxy API calls to the API service above.
+      # If Render assigns the API a different onrender.com URL, update this destination to match.
+      - type: rewrite
+        source: /api/*
+        destination: https://construction-management-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
