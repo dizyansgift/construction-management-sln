@@ -61,6 +61,14 @@ app.UseCors("Clients");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "construction-management-api",
+    status = "ok",
+    endpoints = new[] { "/api/projects", "/api/auth" }
+}));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+
 app.MapControllers();
 
 await using (var scope = app.Services.CreateAsyncScope())
