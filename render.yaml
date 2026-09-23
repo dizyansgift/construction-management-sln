@@ -1,4 +1,10 @@
 services:
+  - type: pserv
+    name: construction-management-db
+    plan: free
+    databaseName: construction_management
+    user: construction_management
+
   # ASP.NET Core API, built from the existing Dockerfile
   - type: web
     name: construction-management-api
@@ -11,7 +17,11 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: Database__Provider
-        value: Sqlite
+        value: Postgres
+      - key: ConnectionStrings__ConstructionDatabase
+        fromDatabase:
+          name: construction-management-db
+          property: connectionString
       - key: CONSTRUCTION_JWT_KEY
         generateValue: true
 

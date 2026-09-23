@@ -15,7 +15,11 @@ builder.Services.AddOpenApi();
 var databaseProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
 builder.Services.AddDbContext<ConstructionDbContext>(options =>
 {
-    if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+    if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("ConstructionDatabase"));
+    }
+    else if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
     {
         options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServerConstructionDatabase"));
     }

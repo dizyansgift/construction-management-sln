@@ -52,13 +52,14 @@ The MAUI workload is required to build `src/Maui` for Windows, Android, and iOS.
 
 This repo includes a [`render.yaml`](render.yaml) Blueprint that deploys two services:
 
-- `construction-management-api`: the ASP.NET Core API, built from [`Dockerfile.vercel`](Dockerfile.vercel) (SQLite by default)
+- `construction-management-db`: managed Render PostgreSQL database for persistent production data
+- `construction-management-api`: the ASP.NET Core API, built from [`Dockerfile.vercel`](Dockerfile.vercel)
 - `construction-management-web`: the Angular dashboard, built as a static site, with `/api/*` requests rewritten to the API service
 
 To deploy:
 
 1. Push this repo to GitHub/GitLab and create a new Blueprint in the [Render Dashboard](https://dashboard.render.com), pointing it at this repo.
-2. Render provisions both services and generates a random `CONSTRUCTION_JWT_KEY` automatically.
+2. Render provisions the PostgreSQL database and both services, then injects the database connection string and a random `CONSTRUCTION_JWT_KEY` into the API automatically.
 3. After the first deploy, confirm the API service's actual `onrender.com` URL. If it differs from `construction-management-api.onrender.com` (for example, because that name was already taken), update the `destination` in the web service's `/api/*` rewrite rule in `render.yaml` and redeploy.
 
-SQLite runs on the API service's local disk, which is ephemeral on Render's free plan — data resets on redeploy/restart. Attach a persistent disk or switch `Database__Provider` to `SqlServer` with a managed database for durable storage.
+Local development continues to use SQLite. On Render, PostgreSQL keeps data across API redeploys and restarts. For an existing Blueprint deployment, sync the Blueprint in Render to provision the database and redeploy the API.
