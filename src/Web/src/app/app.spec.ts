@@ -22,4 +22,16 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Project overview');
   });
+
+  it('should expose the construction workflow phases and project detail view', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    app.openSection('Projects');
+    app.selectProject('Riverside Medical Pavilion');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Phase A');
+    expect(compiled.textContent).toContain('Foundation / Substructure');
+  });
 });

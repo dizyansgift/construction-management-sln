@@ -1,0 +1,11 @@
+.next/
+node_modules/
+out/
+.env*
+*.tsbuildinfo
+**/bin/
+**/obj/
+src/Web/dist/
+src/Web/.angular/
+*.user
+*.suo

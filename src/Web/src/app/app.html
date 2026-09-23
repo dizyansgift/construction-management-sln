@@ -12,9 +12,9 @@
   <section class="content">
     <header class="topbar"><span>Monday, September 12, 2026 · Week 37</span><div class="topbar-actions"><button class="theme-toggle" type="button" (click)="toggleTheme()" [attr.aria-label]="darkMode() ? 'Switch to light mode' : 'Switch to dark mode'"><span>{{ darkMode() ? '☀' : '◐' }}</span>{{ darkMode() ? 'Light mode' : 'Dark mode' }}</button><button class="primary" (click)="openProjectForm()">＋ New project</button></div></header>
     @if (activeSection() === 'Dashboard') {
-      
-      
-        <div class="heading"><div><p class="eyebrow">GOOD MORNING, JORDAN</p><h1>Project overview</h1></div><div class="heading-actions"><label class="filter-label">Project<select class="filter" name="dashboardProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select></label><button class="filter" type="button" (click)="changeDashboardPeriod()">{{ dashboardPeriod() }}</button></div></div>
+      @if (showProjectForm()) {
+        <div class="modal-backdrop" (click)="closeProjectForm()"><section class="modal" (click)="$event.stopPropagation()"><div class="modal-header"><div><p class="eyebrow">PROJECT SETUP</p><h2>Create new project</h2></div><button class="close" (click)="closeProjectForm()">×</button></div><p class="modal-copy">Set the project schedule and structural system before field work begins.</p><form (ngSubmit)="createProject()"><div class="form-grid"><label>Project name *<input name="name" [(ngModel)]="projectForm.name" placeholder="Riverside Medical Pavilion"></label><label>Project code (auto-generated)<input name="projectCode" [(ngModel)]="projectForm.projectCode" readonly></label><label>Client name *<input name="clientName" [(ngModel)]="projectForm.clientName" placeholder="Client or company"></label><label>Site location<input name="siteAddress" [(ngModel)]="projectForm.siteAddress" placeholder="City, state"></label><label>Planned start date<input name="startDate" type="date" [(ngModel)]="projectForm.startDate"></label><label>Expected completion date<input name="expectedCompletionDate" type="date" [(ngModel)]="projectForm.expectedCompletionDate"></label><label>Foundation / structural system<select name="foundationSystem" [(ngModel)]="projectForm.foundationSystem">@for (option of foundationOptionsList(); track option) {<option [value]="option">{{ option }}</option>}</select></label><label>Estimated budget *<input name="budget" type="number" min="0" [(ngModel)]="projectForm.estimatedBudget"></label><label>Project manager<input name="manager" [(ngModel)]="projectForm.projectManager" placeholder="Assigned manager"></label></div>@if (formError()) {<p class="form-error">{{ formError() }}</p>}<div class="form-actions"><button type="button" class="secondary" (click)="closeProjectForm()">Cancel</button><button type="submit" class="primary" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Saving...' : 'Create project' }}</button></div></form></section></div>
+        }
         <section class="stats"><article><span>Active projects</span><strong>{{ visibleProjects().length }}</strong><small>{{ selectedProjectFilter() === 'All projects' ? 'Current portfolio' : selectedProjectFilter() }}</small></article><article><span>Total estimated budget</span><strong>{{ visibleProjects().reduce(totalBudget, 0) | currency:'INR':'symbol':'1.0-0' }}</strong><small>Across selected projects</small></article><article><span>Actual expenses</span><strong>{{ visibleProjects().reduce(totalActual, 0) | currency:'INR':'symbol':'1.0-0' }}</strong><small>Recorded to date</small></article><article><span>Average progress</span><strong>{{ averageProgress(visibleProjects()) }}%</strong><small>Portfolio completion</small></article></section>
         
       @if (riskProjects().length) {<section class="risk-alert"><strong>{{ riskProjects().length }} project{{ riskProjects().length === 1 ? '' : 's' }} need attention</strong><span>Budget or schedule thresholds have been exceeded.</span><button class="link-button" (click)="openSection('Projects')">Review projects →</button></section>}
@@ -26,7 +26,137 @@
       <div class="heading"><div><p class="eyebrow">SLATE WORKSPACE</p><h1>{{ activeSection() }}</h1><p class="workspace-description">Manage {{ activeSection().toLowerCase() }} across your construction portfolio.</p></div><div class="heading-actions"><label class="filter-label">Project<select class="filter" name="workspaceProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select></label><button class="primary" (click)="activeSection() === 'Projects' ? openProjectForm() : activeSection() === 'BOQ / Estimation' ? openBoqForm() : activeSection() === 'Materials' ? openMaterialForm() : activeSection() === 'Expenses' ? openExpenseForm() : activeSection() === 'Payments' ? openPaymentForm() : action(activeSection())">＋ {{ activeSection() === 'Projects' ? 'New project' : activeSection() === 'Materials' ? 'Receive materials' : activeSection() === 'Expenses' ? 'Add expense' : activeSection() === 'Payments' ? 'Add payment' : activeSection() === 'BOQ / Estimation' ? 'Add BOQ item' : activeSection() === 'Labour' ? 'Record attendance' : 'Create report' }}</button></div></div>
       @if (moduleNotice()) {<div class="notice">{{ moduleNotice() }}</div>}
       @if (activeSection() === 'Projects') {
-        <section class="workspace-panel"><div class="panel-heading"><div><h2>Project portfolio</h2><p>All project records saved in the API or local workspace.</p></div><span class="badge">{{ projects().length }} projects</span></div>@if (projects().length) {<div class="table-head project-table-grid"><span>PROJECT</span><span>CLIENT</span><span>LOCATION</span><span>BUDGET</span><span>PROGRESS</span><span>STATUS</span></div>@for (project of projects(); track project.id) {<div class="workspace-row project-table-grid" [class.project-risk]="projectRiskLabel(project)"><strong>{{ project.name }}</strong><span>{{ project.clientName || 'Client pending' }}</span><span>{{ project.siteAddress || 'Location pending' }}</span><span>{{ project.estimatedBudget | currency:'INR':'symbol':'1.0-0' }}</span><span>{{ project.progressPercent }}%</span><span [class.risk-text]="projectRiskLabel(project)" [class.low-stock]="project.status === 'Delayed'">{{ projectRiskLabel(project) || project.status }}</span></div>}} @else {<div class="empty">No projects found. Click “＋ New project” to create one.</div>}</section>
+        <section class="workspace-panel project-overview-panel">
+          <div class="panel-heading"><div><h2>Project portfolio</h2><p>All project records saved in the API or local workspace.</p></div><span class="badge">{{ projects().length }} projects</span></div>
+          @if (projects().length) {
+            <div class="table-head project-table-grid"><span>PROJECT</span><span>CLIENT</span><span>LOCATION</span><span>BUDGET</span><span>PROGRESS</span><span>STATUS</span></div>
+            @for (project of projects(); track project.id) {
+              <button class="workspace-row project-table-grid project-select-row" [class.project-risk]="projectRiskLabel(project)" type="button" (click)="selectProject(project.name)">
+                <strong>{{ project.name }}</strong>
+                <span>{{ project.clientName || 'Client pending' }}</span>
+                <span>{{ project.siteAddress || 'Location pending' }}</span>
+                <span>{{ project.estimatedBudget | currency:'INR':'symbol':'1.0-0' }}</span>
+                <span>{{ project.progressPercent || calculateProjectProgress(project.constructionPhases || constructionPhases()) }}%</span>
+                <span [class.risk-text]="projectRiskLabel(project)" [class.low-stock]="project.status === 'Delayed'">{{ projectRiskLabel(project) || project.status }}</span>
+              </button>
+            }
+          } @else {
+            <div class="empty">No projects found. Click “＋ New project” to create one.</div>
+          }
+        </section>
+
+        @if (selectedProject()) {
+          <section class="project-detail-panel">
+            <div class="project-summary-header">
+              <div>
+                <p class="eyebrow">RESIDENTIAL CONSTRUCTION</p>
+                <h2>{{ selectedProject()?.name }}</h2>
+              </div>
+              <div class="project-summary-metrics">
+                <div class="metric-pill">
+                  <span>Overall progress</span>
+                  <strong>{{ calculateProjectProgress(selectedProject()?.constructionPhases || constructionPhases()) }}%</strong>
+                </div>
+                <div class="metric-pill">
+                  <span>Estimated cost</span>
+                  <strong>{{ totalEstimatedCost() | currency:'INR':'symbol':'1.0-0' }}</strong>
+                </div>
+                <div class="metric-pill">
+                  <span>Actual cost</span>
+                  <strong>{{ totalActualCost() | currency:'INR':'symbol':'1.0-0' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="phase-system-row">
+              <div class="foundation-selector">
+                <label>Foundation / Structural System</label>
+                <select [ngModel]="selectedFoundationSystem()" (ngModelChange)="applyFoundationSystem($event)">
+                  @for (option of foundationOptionsList(); track option) {
+                    <option [value]="option">{{ option }}</option>
+                  }
+                </select>
+              </div>
+              <div class="phase-progress-summary">
+                <span>Project progress</span>
+                <strong>{{ calculateProjectProgress(selectedProject()?.constructionPhases || constructionPhases()) }}%</strong>
+                <div class="progress-rail"><i [style.width.%]="calculateProjectProgress(selectedProject()?.constructionPhases || constructionPhases())"></i></div>
+              </div>
+            </div>
+
+            <div class="phase-nav" role="tablist">
+              @for (phase of visibleConstructionPhases(); track phase.id) {
+                <button type="button" class="phase-tab" [class.active]="selectedPhaseId() === phase.id" (click)="setSelectedPhase(phase.id)">
+                  Phase {{ phase.id }}
+                </button>
+              }
+            </div>
+
+            @if (activePhase()) {
+              <div class="phase-panel">
+                <div class="phase-header">
+                  <div>
+                    <p class="eyebrow">{{ activePhase()?.id }}</p>
+                    <h3>{{ activePhase()?.name }}</h3>
+                  </div>
+                  <span>{{ activePhase()?.description }}</span>
+                </div>
+
+                <div class="activity-table-wrap">
+                  <table class="activity-table">
+                    <thead>
+                      <tr>
+                        <th>Activity</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Planned</th>
+                        <th>Actual</th>
+                        <th>Assigned</th>
+                        <th>Cost</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (activity of selectedPhaseActivities(); track activity.id) {
+                        <tr [class.optional-row]="activity.isOptional || activity.isConditional">
+                          <td>
+                            <div class="activity-name-group">
+                              <strong>{{ activity.name }}</strong>
+                              @if (activity.isConditional || activity.isOptional) {
+                                <small>{{ activity.isConditional ? 'Conditional' : 'Optional' }}</small>
+                              }
+                            </div>
+                          </td>
+                          <td>
+                            <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
+                              <option>Not Started</option>
+                              <option>In Progress</option>
+                              <option>Completed</option>
+                              <option>On Hold</option>
+                              <option>Delayed</option>
+                            </select>
+                          </td>
+                          <td>
+                            <div class="progress-cell">
+                              <div class="mini-progress"><i [style.width.%]="activity.progress"></i></div>
+                              <input type="range" min="0" max="100" step="5" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
+                              <span>{{ activity.progress }}%</span>
+                            </div>
+                          </td>
+                          <td><div class="activity-edit-fields"><input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"><input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></div></td>
+                          <td><div class="activity-edit-fields"><input type="date" [ngModel]="activity.actualStartDate" (ngModelChange)="updateActivityDetails(activity.id, { actualStartDate: $event })"><input type="date" [ngModel]="activity.actualEndDate" (ngModelChange)="updateActivityDetails(activity.id, { actualEndDate: $event })"></div></td>
+                          <td><input class="activity-edit-input" [ngModel]="activity.assignedTo" (ngModelChange)="updateActivityDetails(activity.id, { assignedTo: $event })"></td>
+                          <td><div class="activity-edit-fields"><input type="number" min="0" [ngModel]="activity.estimatedCost" (ngModelChange)="updateActivityDetails(activity.id, { estimatedCost: +$event })"><input type="number" min="0" [ngModel]="activity.actualCost" (ngModelChange)="updateActivityDetails(activity.id, { actualCost: +$event })"></div></td>
+                          <td><textarea class="activity-edit-input" rows="2" [ngModel]="activity.notes" (ngModelChange)="updateActivityDetails(activity.id, { notes: $event })"></textarea></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+          </section>
+        }
       } @else if (activeSection() === 'Materials') {
         <section class="module-summary"><article><span>Total stock lines</span><strong>{{ materials.length }}</strong><small>Across active sites</small></article><article><span>Low stock alerts</span><strong class="warning">{{ lowStockCount() }}</strong><small>Needs purchase order</small></article><article><span>Inventory value</span><strong>{{ materials.reduce(stockValue, 0) | currency:'INR':'symbol':'1.0-0' }}</strong><small>Current stock valuation</small></article></section>
         <section class="workspace-panel inventory-panel"><div class="panel-heading"><div><h2>Material inventory</h2><p>Track stock, suppliers, prices, and reorder levels.</p></div><button class="filter" (click)="action('Material filter')">All categories ⌄</button></div><div class="table-head material-grid"><span>MATERIAL</span><span>CATEGORY</span><span>STOCK</span><span>UNIT PRICE</span><span>SUPPLIER</span><span>STATE</span></div>@for (material of materials; track material.name) {<div class="workspace-row material-grid"><strong>{{ material.name }}</strong><span>{{ material.category }}</span><span>{{ material.stock }} {{ material.unit }}</span><span>{{ material.price | currency:'INR':'symbol':'1.2-2' }}</span><span>{{ material.supplier }}</span><span [class.low-stock]="material.stock < material.minimum">{{ material.stock < material.minimum ? 'Reorder' : 'In stock' }}</span></div>}</section>
