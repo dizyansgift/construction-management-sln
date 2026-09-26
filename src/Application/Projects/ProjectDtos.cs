@@ -11,7 +11,9 @@ public sealed record ProjectListItem(
     decimal EstimatedBudget,
     decimal ActualCost,
     decimal ProgressPercent,
-    ProjectStatus Status);
+    ProjectStatus Status,
+    string FoundationSystem,
+    string? ConstructionPlanJson);
 
 public sealed record CreateProjectRequest(
     string ProjectCode,
@@ -34,3 +36,9 @@ public sealed record UpdateProjectRequest(
     decimal ProgressPercent,
     string ProjectManager,
     string Description);
+
+public sealed record UpdateConstructionPlanRequest(
+    string FoundationSystem,
+    string ConstructionPlanJson,
+    decimal ProgressPercent,
+    decimal ActualCost);

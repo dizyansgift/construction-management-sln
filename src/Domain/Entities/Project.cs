@@ -20,6 +20,8 @@ public sealed class Project : Entity
     public string ProjectManager { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool IsArchived { get; set; }
+    public string FoundationSystem { get; set; } = string.Empty;
+    public string? ConstructionPlanJson { get; set; }
     public ICollection<BoqItem> BoqItems { get; set; } = [];
     public ICollection<Expense> Expenses { get; set; } = [];
     public ICollection<ProgressUpdate> ProgressUpdates { get; set; } = [];

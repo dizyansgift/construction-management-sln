@@ -1,8 +1,10 @@
 using ConstructionManagement.Application.Projects;
 using ConstructionManagement.Application.Finance;
+using ConstructionManagement.Application.Inventory;
 using ConstructionManagement.Infrastructure.Persistence;
 using ConstructionManagement.Infrastructure.Projects;
 using ConstructionManagement.Infrastructure.Finance;
+using ConstructionManagement.Infrastructure.Inventory;
 using ConstructionManagement.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -54,6 +56,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddCors(options => options.AddPolicy("Clients", policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 

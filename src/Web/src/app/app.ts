@@ -3,6 +3,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Project, ProjectsService } from './projects.service';
 import { FinanceService } from './finance.service';
+import { InventoryService } from './inventory.service';
 
 export type ActivityStatus = 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Delayed';
 
@@ -173,7 +174,6 @@ const foundationOptions = ['Standard/RR foundation', 'Column footing structure',
 declare module './projects.service' {
   interface Project {
     constructionPhases?: ConstructionPhase[];
-    foundationSystem?: string;
   }
 }
 
@@ -187,8 +187,7 @@ declare module './projects.service' {
 export class App implements OnInit {
   private readonly projectsService = inject(ProjectsService);
   private readonly financeService = inject(FinanceService);
-  private readonly projectStorageKey = 'slate.projects';
-  private readonly apiProjectIds = signal<Set<string>>(new Set());
+  private readonly inventoryService = inject(InventoryService);
   protected readonly projects = signal<Project[]>([]);
   protected readonly activeSection = signal('Dashboard');
   protected readonly dashboardPeriod = signal('This week');
@@ -224,126 +223,12 @@ export class App implements OnInit {
   protected readonly showReportPreview = signal(false);
   protected readonly reportTitle = signal('');
   protected readonly reportContent = signal('');
-  protected readonly materials = [
-    {
-      name: 'Portland cement',
-      project: 'Riverside Medical Pavilion',
-      category: 'Concrete',
-      unit: 'bags',
-      stock: 480,
-      minimum: 120,
-      price: 11.5,
-      supplier: 'Cascade Building Supply',
-    },
-    {
-      name: 'Rebar steel 12mm',
-      project: 'Riverside Medical Pavilion',
-      category: 'Reinforcement',
-      unit: 'lengths',
-      stock: 860,
-      minimum: 200,
-      price: 8.75,
-      supplier: 'Northwest Steel',
-    },
-    {
-      name: 'Washed construction sand',
-      project: 'Northline Apartments',
-      category: 'Aggregates',
-      unit: 'tons',
-      stock: 18,
-      minimum: 8,
-      price: 64,
-      supplier: 'Columbia Aggregates',
-    },
-    {
-      name: 'Concrete block 8in',
-      project: 'Northline Apartments',
-      category: 'Masonry',
-      unit: 'pieces',
-      stock: 3200,
-      minimum: 900,
-      price: 2.85,
-      supplier: 'Cedar Masonry',
-    },
-    {
-      name: 'Framing lumber 2x4',
-      project: 'Cedar Street Retail',
-      category: 'Timber',
-      unit: 'pieces',
-      stock: 740,
-      minimum: 250,
-      price: 6.4,
-      supplier: 'Westline Timber',
-    },
-    {
-      name: 'PVC pipe 4in',
-      project: 'Cedar Street Retail',
-      category: 'Plumbing',
-      unit: 'lengths',
-      stock: 34,
-      minimum: 40,
-      price: 18.2,
-      supplier: 'FlowPro Plumbing',
-    },
-    {
-      name: 'Electrical cable 2.5mm',
-      project: 'Riverside Medical Pavilion',
-      category: 'Electrical',
-      unit: 'rolls',
-      stock: 26,
-      minimum: 10,
-      price: 92,
-      supplier: 'BrightWire Electrical',
-    },
-    {
-      name: 'Interior wall paint',
-      project: 'Cedar Street Retail',
-      category: 'Finishes',
-      unit: 'gallons',
-      stock: 68,
-      minimum: 20,
-      price: 38,
-      supplier: 'ColorCraft',
-    },
-  ];
-  protected readonly boqItems = signal([
-    {
-      project: 'Riverside Medical Pavilion',
-      category: 'Concrete',
-      description: 'Foundation concrete C30',
-      unit: 'm³',
-      quantity: 120,
-      rate: 145,
-      amount: 17400,
-    },
-    {
-      project: 'Riverside Medical Pavilion',
-      category: 'Reinforcement',
-      description: 'Rebar supply and placement',
-      unit: 'ton',
-      quantity: 18,
-      rate: 980,
-      amount: 17640,
-    },
-    {
-      project: 'Northline Apartments',
-      category: 'Masonry',
-      description: 'External blockwork',
-      unit: 'm²',
-      quantity: 860,
-      rate: 42,
-      amount: 36120,
-    },
-    {
-      project: 'Cedar Street Retail',
-      category: 'Electrical',
-      description: 'First fix electrical installation',
-      unit: 'lot',
-      quantity: 1,
-      rate: 18500,
-      amount: 18500,
-    },
-  ]);
+  protected readonly materials = signal<
+    { id?: string; name: string; project: string; category: string; unit: string; stock: number; minimum: number; price: number; supplier: string }[]
+  >([]);
+  protected readonly boqItems = signal<
+    { id?: string; project: string; category: string; description: string; unit: string; quantity: number; rate: number; amount: number }[]
+  >([]);
   protected readonly labour = [
     {
       name: 'Maya Singh',
@@ -374,70 +259,12 @@ export class App implements OnInit {
       wage: 1250,
     },
   ];
-  protected readonly expenses = signal([
-    {
-      category: 'Materials',
-      description: 'Cement and rebar delivery',
-      project: 'Riverside Medical Pavilion',
-      vendor: 'Cascade Building Supply',
-      amount: 8420,
-      date: 'Sep 11, 2026',
-      receiptName: '',
-      phaseId: 'A',
-    },
-    {
-      category: 'Equipment',
-      description: 'Excavator rental',
-      project: 'Northline Apartments',
-      vendor: 'Horizon Equipment',
-      amount: 3200,
-      date: 'Sep 10, 2026',
-      receiptName: '',
-      phaseId: 'A',
-    },
-    {
-      category: 'Fuel',
-      description: 'Site vehicles and generator',
-      project: 'Cedar Street Retail',
-      vendor: 'Pacific Fuel Co.',
-      amount: 680,
-      date: 'Sep 09, 2026',
-      receiptName: '',
-      phaseId: '',
-    },
-  ]);
-  protected readonly payments = signal([
-    {
-      project: 'Riverside Medical Pavilion',
-      type: 'Customer payment',
-      party: 'Riverside Health',
-      invoice: 'INV-1024',
-      amount: 125000,
-      status: 'Received',
-      due: 'Sep 08, 2026',
-      phaseId: 'A',
-    },
-    {
-      project: 'Riverside Medical Pavilion',
-      type: 'Supplier payment',
-      party: 'Northwest Steel',
-      invoice: 'SUP-4481',
-      amount: 18400,
-      status: 'Pending',
-      due: 'Sep 15, 2026',
-      phaseId: 'A',
-    },
-    {
-      project: 'Northline Apartments',
-      type: 'Contractor payment',
-      party: 'Northline Civil',
-      invoice: 'CON-2077',
-      amount: 32200,
-      status: 'Pending',
-      due: 'Sep 18, 2026',
-      phaseId: '',
-    },
-  ]);
+  protected readonly expenses = signal<
+    { id?: string; category: string; description: string; project: string; vendor: string; amount: number; date: string; receiptName: string; phaseId: string }[]
+  >([]);
+  protected readonly payments = signal<
+    { id?: string; project: string; type: string; party: string; invoice: string; amount: number; status: string; due: string; phaseId: string }[]
+  >([]);
   protected readonly projectForm = {
     projectCode: '',
     name: '',
@@ -497,91 +324,94 @@ export class App implements OnInit {
   protected readonly totalActual = (total: number, project: { actualCost: number }) =>
     total + project.actualCost;
 
-  private createDemoProject(): Project {
-    const phases = createDefaultConstructionPhases();
-    const progressPercent = this.calculateProjectProgress(phases);
-    const estimatedBudget = phases
-      .flatMap((phase) => phase.activities)
-      .reduce((sum, activity) => sum + activity.estimatedCost, 0);
-    const actualCost = phases
-      .flatMap((phase) => phase.activities)
-      .reduce((sum, activity) => sum + activity.actualCost, 0);
-
-    return {
-      id: 'demo-riverside',
-      projectCode: 'PRJ-0001',
-      name: 'Riverside Medical Pavilion',
-      clientName: 'Riverside Health',
-      siteAddress: 'Bengaluru, Karnataka',
-      estimatedBudget,
-      actualCost,
-      progressPercent,
-      status: 'In Progress',
-      foundationSystem: 'Standard/RR foundation',
-      constructionPhases: phases,
-    };
+  private parseConstructionPlan(project: Project): ConstructionPhase[] {
+    if (!project.constructionPlanJson) return createDefaultConstructionPhases();
+    try {
+      const parsed = JSON.parse(project.constructionPlanJson) as ConstructionPhase[];
+      return Array.isArray(parsed) && parsed.length ? parsed : createDefaultConstructionPhases();
+    } catch {
+      return createDefaultConstructionPhases();
+    }
   }
 
   ngOnInit(): void {
     this.darkMode.set(localStorage.getItem('slate.theme') === 'dark');
-    const savedProjects = this.readSavedProjects();
-    const seededProjects = savedProjects.length ? savedProjects : [this.createDemoProject()];
-    this.projects.set(seededProjects);
-    this.selectedProject.set(seededProjects[0] ?? null);
-    this.constructionPhases.set(seededProjects[0]?.constructionPhases ?? createDefaultConstructionPhases());
-    this.selectedFoundationSystem.set(seededProjects[0]?.foundationSystem ?? 'Standard/RR foundation');
-    this.selectedProjectFilter.set(seededProjects[0]?.name ?? 'All projects');
-    this.saveProjects(seededProjects);
 
     this.projectsService.getProjects().subscribe((apiProjects) => {
-      if (apiProjects.length > 0) {
-        this.apiProjectIds.set(new Set(apiProjects.map((project) => project.id)));
-        const existing = new Map(
-          this.projects().map((project) => [project.id || project.projectCode, project]),
-        );
-        for (const project of apiProjects) existing.set(project.id || project.projectCode, project);
-        const mergedProjects = [...existing.values()];
-        this.projects.set(mergedProjects);
-        this.saveProjects(mergedProjects);
+      const projectsWithPlans = apiProjects.map((project) => ({
+        ...project,
+        constructionPhases: this.parseConstructionPlan(project),
+      }));
+      this.projects.set(projectsWithPlans);
+      const firstProject = projectsWithPlans[0] ?? null;
+      this.selectedProject.set(firstProject);
+      this.constructionPhases.set(firstProject?.constructionPhases ?? createDefaultConstructionPhases());
+      this.selectedFoundationSystem.set(firstProject?.foundationSystem || 'Standard/RR foundation');
+      this.selectedProjectFilter.set(firstProject?.name ?? 'All projects');
+      if (!projectsWithPlans.length) return;
 
-        const projectNameById = new Map(apiProjects.map((project) => [project.id, project.name]));
-        this.financeService.getExpenses().subscribe((apiExpenses) => {
-          if (!apiExpenses.length) return;
-          const existingKeys = new Set(this.expenses().map((expense) => `${expense.description}|${expense.date}|${expense.amount}`));
-          const mapped = apiExpenses
-            .map((expense) => ({
-              category: expense.category,
-              description: expense.description,
-              project: projectNameById.get(expense.projectId) ?? 'Unknown project',
-              vendor: expense.vendor,
-              amount: expense.amount,
-              date: new Date(expense.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-              receiptName: '',
-              phaseId: expense.phaseId ?? '',
-            }))
-            .filter((expense) => !existingKeys.has(`${expense.description}|${expense.date}|${expense.amount}`));
-          if (mapped.length) this.expenses.update((expenses) => [...mapped, ...expenses]);
-        });
-        this.financeService.getPayments().subscribe((apiPayments) => {
-          if (!apiPayments.length) return;
-          const existingInvoices = new Set(this.payments().map((payment) => payment.invoice));
-          const mapped = apiPayments
-            .filter((payment) => !existingInvoices.has(payment.invoiceNumber))
-            .map((payment) => ({
-              project: projectNameById.get(payment.projectId) ?? 'Unknown project',
-              type: payment.paymentType,
-              party: payment.partyName,
-              invoice: payment.invoiceNumber,
-              amount: payment.amount,
-              status: payment.status,
-              due: payment.dueDate
-                ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                : '',
-              phaseId: payment.phaseId ?? '',
-            }));
-          if (mapped.length) this.payments.update((payments) => [...mapped, ...payments]);
-        });
-      }
+      const projectNameById = new Map(projectsWithPlans.map((project) => [project.id, project.name]));
+
+      this.financeService.getExpenses().subscribe((apiExpenses) => {
+        const mapped = apiExpenses.map((expense) => ({
+          id: expense.id,
+          category: expense.category,
+          description: expense.description,
+          project: projectNameById.get(expense.projectId) ?? 'Unknown project',
+          vendor: expense.vendor,
+          amount: expense.amount,
+          date: new Date(expense.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          receiptName: '',
+          phaseId: expense.phaseId ?? '',
+        }));
+        this.expenses.set(mapped);
+      });
+
+      this.financeService.getPayments().subscribe((apiPayments) => {
+        const mapped = apiPayments.map((payment) => ({
+          id: payment.id,
+          project: projectNameById.get(payment.projectId) ?? 'Unknown project',
+          type: payment.paymentType,
+          party: payment.partyName,
+          invoice: payment.invoiceNumber,
+          amount: payment.amount,
+          status: payment.status,
+          due: payment.dueDate
+            ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '',
+          phaseId: payment.phaseId ?? '',
+        }));
+        this.payments.set(mapped);
+      });
+
+      this.inventoryService.getMaterials().subscribe((apiMaterials) => {
+        const mapped = apiMaterials.map((material) => ({
+          id: material.id,
+          name: material.name,
+          project: projectNameById.get(material.projectId) ?? 'Unknown project',
+          category: material.category,
+          unit: material.unit,
+          stock: material.currentStock,
+          minimum: material.minimumStock,
+          price: material.unitPrice,
+          supplier: material.supplierName,
+        }));
+        this.materials.set(mapped);
+      });
+
+      this.inventoryService.getBoqItems().subscribe((apiBoqItems) => {
+        const mapped = apiBoqItems.map((item) => ({
+          id: item.id,
+          project: projectNameById.get(item.projectId) ?? 'Unknown project',
+          category: item.category,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          rate: item.estimatedRate,
+          amount: item.quantity * item.estimatedRate,
+        }));
+        this.boqItems.set(mapped);
+      });
     });
   }
 
@@ -651,6 +481,29 @@ export class App implements OnInit {
       }),
     }));
     this.constructionPhases.set(nextPhases);
+    this.persistConstructionPlan(nextPhases);
+  }
+
+  private persistConstructionPlan(nextPhases: ConstructionPhase[]): void {
+    const activeProject = this.selectedProject();
+    if (!activeProject) return;
+    const progressPercent = this.calculateProjectProgress(nextPhases);
+    const actualCost = nextPhases.flatMap((phase) => phase.activities).reduce((total, activity) => total + activity.actualCost, 0);
+    const foundationSystem = this.selectedFoundationSystem();
+    const updatedProject = { ...activeProject, progressPercent, actualCost, constructionPhases: nextPhases, foundationSystem };
+    this.selectedProject.set(updatedProject);
+    this.projects.update((projects) => projects.map((project) => (project.id === activeProject.id ? updatedProject : project)));
+
+    if (activeProject.id) {
+      this.projectsService
+        .updateConstructionPlan(activeProject.id, {
+          foundationSystem,
+          constructionPlanJson: JSON.stringify(nextPhases),
+          progressPercent,
+          actualCost,
+        })
+        .subscribe();
+    }
   }
 
   protected setSelectedPhase(phaseId: string): void {
@@ -667,17 +520,7 @@ export class App implements OnInit {
       ),
     }));
     this.constructionPhases.set(nextPhases);
-    const selectedProject = this.selectedProject();
-    if (selectedProject) {
-      this.selectedProject.set({ ...selectedProject, progressPercent: this.calculateProjectProgress(nextPhases) });
-    }
-    this.projects.update((projects) =>
-      projects.map((project) =>
-        project.name === (this.selectedProject()?.name ?? project.name)
-          ? { ...project, progressPercent: this.calculateProjectProgress(nextPhases), constructionPhases: nextPhases, foundationSystem: this.selectedFoundationSystem() }
-          : project,
-      ),
-    );
+    this.persistConstructionPlan(nextPhases);
   }
 
   protected progressTrackStyle(value: number): string {
@@ -693,17 +536,7 @@ export class App implements OnInit {
       ),
     }));
     this.constructionPhases.set(nextPhases);
-    const activeProject = this.selectedProject();
-    if (activeProject) {
-      this.selectedProject.set({ ...activeProject, progressPercent: this.calculateProjectProgress(nextPhases) });
-    }
-    this.projects.update((projects) =>
-      projects.map((project) =>
-        project.name === (this.selectedProject()?.name ?? project.name)
-          ? { ...project, progressPercent: this.calculateProjectProgress(nextPhases), constructionPhases: nextPhases, foundationSystem: this.selectedFoundationSystem() }
-          : project,
-      ),
-    );
+    this.persistConstructionPlan(nextPhases);
   }
 
   protected updateActivityDetails(
@@ -717,22 +550,7 @@ export class App implements OnInit {
       ),
     }));
     this.constructionPhases.set(nextPhases);
-    const progressPercent = this.calculateProjectProgress(nextPhases);
-    const activeProject = this.selectedProject();
-    if (!activeProject) return;
-    const updatedProject = {
-      ...activeProject,
-      progressPercent,
-      actualCost: nextPhases.flatMap((phase) => phase.activities).reduce((total, activity) => total + activity.actualCost, 0),
-      constructionPhases: nextPhases,
-      foundationSystem: this.selectedFoundationSystem(),
-    };
-    this.selectedProject.set(updatedProject);
-    this.projects.update((projects) => {
-      const updatedProjects = projects.map((project) => project.id === activeProject.id ? updatedProject : project);
-      this.saveProjects(updatedProjects);
-      return updatedProjects;
-    });
+    this.persistConstructionPlan(nextPhases);
   }
 
   protected activityProgressFromStatus(status: ActivityStatus): number {
@@ -1062,7 +880,7 @@ export class App implements OnInit {
         ...this.expenses().map((expense) => expense.project),
         ...this.payments().map((payment) => payment.project),
         ...this.labour.map((worker) => worker.project),
-        ...this.materials.map((material) => material.project),
+        ...this.materials().map((material) => material.project),
       ]),
     ].sort();
   }
@@ -1095,8 +913,8 @@ export class App implements OnInit {
 
   protected visibleMaterials() {
     return this.selectedProjectFilter() === 'All projects'
-      ? this.materials
-      : this.materials.filter((material) => material.project === this.selectedProjectFilter());
+      ? this.materials()
+      : this.materials().filter((material) => material.project === this.selectedProjectFilter());
   }
 
   protected visibleLabour() {
@@ -1254,19 +1072,17 @@ export class App implements OnInit {
       receiptName: this.receiptFileName(),
     };
     this.expenses.update((expenses) => [expense, ...expenses]);
-    this.projects.update((projects) => {
-      const updatedProjects = projects.map((project) =>
+    this.projects.update((projects) =>
+      projects.map((project) =>
         project.name === expense.project
           ? { ...project, actualCost: project.actualCost + expense.amount }
           : project,
-      );
-      this.saveProjects(updatedProjects);
-      return updatedProjects;
-    });
+      ),
+    );
     this.moduleNotice.set(`Expense added to ${expense.project}.`);
 
     const expenseProjectId = this.projects().find((project) => project.name === expense.project)?.id;
-    if (expenseProjectId && this.apiProjectIds().has(expenseProjectId)) {
+    if (expenseProjectId) {
       this.financeService
         .createExpense({
           projectId: expenseProjectId,
@@ -1339,20 +1155,40 @@ export class App implements OnInit {
       price: Number(form.price),
       supplier: form.supplier.trim(),
     };
-    const existing = this.materials.find(
+    const existing = this.materials().find(
       (material) =>
         material.name.toLowerCase() === received.name.toLowerCase() &&
         material.project === received.project,
     );
     if (existing) {
-      existing.stock += received.stock;
-      existing.minimum = received.minimum;
-      existing.price = received.price;
-      existing.supplier = received.supplier;
+      this.materials.update((materials) =>
+        materials.map((material) =>
+          material === existing
+            ? { ...material, stock: material.stock + received.stock, minimum: received.minimum, price: received.price, supplier: received.supplier }
+            : material,
+        ),
+      );
     } else {
-      this.materials.unshift(received);
+      this.materials.update((materials) => [received, ...materials]);
     }
     this.moduleNotice.set(`${received.stock} ${received.unit} of ${received.name} received into inventory.`);
+
+    const materialProjectId = this.projects().find((project) => project.name === received.project)?.id;
+    if (materialProjectId) {
+      this.inventoryService
+        .receiveMaterial({
+          projectId: materialProjectId,
+          name: received.name,
+          category: received.category,
+          unit: received.unit,
+          quantity: received.stock,
+          minimumStock: received.minimum,
+          unitPrice: received.price,
+          supplierName: received.supplier,
+        })
+        .subscribe();
+    }
+
     Object.assign(form, {
       name: '',
       project: '',
@@ -1472,7 +1308,7 @@ export class App implements OnInit {
     this.moduleNotice.set(`Payment ${payment.invoice} added to ${projectName}.`);
 
     const paymentProjectId = this.projects().find((project) => project.name === projectName)?.id;
-    if (paymentProjectId && this.apiProjectIds().has(paymentProjectId)) {
+    if (paymentProjectId) {
       this.financeService
         .createPayment({
           projectId: paymentProjectId,
@@ -1523,19 +1359,32 @@ export class App implements OnInit {
       return;
     }
 
-    this.boqItems.update((items) => [
-      ...items,
-      {
-        project: this.boqForm.project,
-        category: this.boqForm.category,
-        description: this.boqForm.description.trim(),
-        unit: this.boqForm.unit,
-        quantity: this.boqForm.quantity,
-        rate: this.boqForm.rate,
-        amount: this.boqForm.quantity * this.boqForm.rate,
-      },
-    ]);
-    this.moduleNotice.set(`BOQ item '${this.boqForm.description.trim()}' added successfully.`);
+    const newItem = {
+      project: this.boqForm.project,
+      category: this.boqForm.category,
+      description: this.boqForm.description.trim(),
+      unit: this.boqForm.unit,
+      quantity: this.boqForm.quantity,
+      rate: this.boqForm.rate,
+      amount: this.boqForm.quantity * this.boqForm.rate,
+    };
+    this.boqItems.update((items) => [...items, newItem]);
+    this.moduleNotice.set(`BOQ item '${newItem.description}' added successfully.`);
+
+    const boqProjectId = this.projects().find((project) => project.name === newItem.project)?.id;
+    if (boqProjectId) {
+      this.inventoryService
+        .createBoqItem({
+          projectId: boqProjectId,
+          category: newItem.category,
+          description: newItem.description,
+          unit: newItem.unit,
+          quantity: newItem.quantity,
+          estimatedRate: newItem.rate,
+        })
+        .subscribe();
+    }
+
     Object.assign(this.boqForm, {
       project: '',
       category: 'Concrete',
@@ -1594,38 +1443,21 @@ export class App implements OnInit {
     this.isSubmitting.set(true);
     const request = { ...this.projectForm };
     this.projectsService.createProject(request).subscribe({
-      next: (project) => {
-        this.apiProjectIds.update((ids) => new Set([...ids, project.id]));
-        this.addProject(project);
+      next: (project) => this.addProject(project),
+      error: () => {
+        this.isSubmitting.set(false);
+        this.formError.set('Could not save the project to the database. Please try again.');
       },
-      error: () =>
-        this.addProject({
-          id: crypto.randomUUID(),
-          projectCode: request.projectCode || `PRJ-${this.projects().length + 1}`.padStart(7, '0'),
-          name: request.name,
-          clientName: request.clientName,
-          siteAddress: request.siteAddress,
-          estimatedBudget: request.estimatedBudget,
-          actualCost: 0,
-          progressPercent: 0,
-          status: 'Planning',
-          foundationSystem: request.foundationSystem,
-          constructionPhases: createDefaultConstructionPhases(),
-        }),
     });
   }
 
   private addProject(project: Project): void {
     const projectWithConstructionPlan: Project = {
       ...project,
-      foundationSystem: project.foundationSystem ?? this.projectForm.foundationSystem,
-      constructionPhases: project.constructionPhases ?? createDefaultConstructionPhases(),
+      foundationSystem: project.foundationSystem || this.projectForm.foundationSystem,
+      constructionPhases: this.parseConstructionPlan(project),
     };
-    this.projects.update((projects) => {
-      const updatedProjects = [...projects, projectWithConstructionPlan];
-      this.saveProjects(updatedProjects);
-      return updatedProjects;
-    });
+    this.projects.update((projects) => [...projects, projectWithConstructionPlan]);
     this.isSubmitting.set(false);
     this.showProjectForm.set(false);
     Object.assign(this.projectForm, {
@@ -1641,30 +1473,6 @@ export class App implements OnInit {
       projectManager: '',
       description: '',
     });
-  }
-
-  private readSavedProjects(): Project[] {
-    try {
-      const saved = localStorage.getItem(this.projectStorageKey);
-      if (saved) return JSON.parse(saved) as Project[];
-
-      const legacySaved = localStorage.getItem('fieldline.projects');
-      if (!legacySaved) return [];
-
-      const projects = JSON.parse(legacySaved) as Project[];
-      localStorage.setItem(this.projectStorageKey, JSON.stringify(projects));
-      return projects;
-    } catch {
-      return [];
-    }
-  }
-
-  private saveProjects(projects: Project[]): void {
-    try {
-      localStorage.setItem(this.projectStorageKey, JSON.stringify(projects));
-    } catch {
-      // Storage may be unavailable in private browsing or restricted environments.
-    }
   }
 
   protected averageProgress(projects: { progressPercent: number }[]): number {

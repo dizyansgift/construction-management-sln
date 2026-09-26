@@ -30,6 +30,7 @@ public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext
         });
         modelBuilder.Entity<Client>().HasIndex(client => client.Name);
         modelBuilder.Entity<BoqItem>().HasIndex(item => item.ProjectId);
+        modelBuilder.Entity<Material>().HasIndex(material => material.ProjectId);
         modelBuilder.Entity<Expense>().HasIndex(expense => new { expense.ProjectId, expense.Date });
         modelBuilder.Entity<Expense>().HasIndex(expense => expense.PhaseId);
         modelBuilder.Entity<Payment>().HasIndex(payment => new { payment.ProjectId, payment.Status });

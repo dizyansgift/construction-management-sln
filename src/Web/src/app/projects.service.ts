@@ -13,6 +13,8 @@ export interface Project {
   progressPercent: number;
   status: string;
   expectedCompletionDate?: string;
+  foundationSystem?: string;
+  constructionPlanJson?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -26,5 +28,9 @@ export class ProjectsService {
 
   createProject(request: { projectCode: string; name: string; clientName: string; clientContact: string; siteAddress: string; startDate: string; expectedCompletionDate: string; estimatedBudget: number; projectManager: string; description: string }): Observable<Project> {
     return this.http.post<Project>(this.endpoint, request);
+  }
+
+  updateConstructionPlan(id: string, request: { foundationSystem: string; constructionPlanJson: string; progressPercent: number; actualCost: number }): Observable<void> {
+    return this.http.put<void>(`${this.endpoint}/${id}/construction-plan`, request);
   }
 }

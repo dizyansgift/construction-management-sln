@@ -65,6 +65,19 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         return true;
     }
 
+    public async Task<bool> UpdateConstructionPlanAsync(Guid id, UpdateConstructionPlanRequest request, CancellationToken cancellationToken = default)
+    {
+        var project = await dbContext.Projects.SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);
+        if (project is null) return false;
+        project.FoundationSystem = request.FoundationSystem;
+        project.ConstructionPlanJson = request.ConstructionPlanJson;
+        project.ProgressPercent = request.ProgressPercent;
+        project.ActualCost = request.ActualCost;
+        project.UpdatedUtc = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var project = await dbContext.Projects.SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);
@@ -75,5 +88,5 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         return true;
     }
 
-    private static ProjectListItem ToListItem(Project project) => new(project.Id, project.ProjectCode, project.Name, project.Client?.Name ?? string.Empty, project.SiteAddress, project.EstimatedBudget, project.ActualCost, project.ProgressPercent, project.Status);
+    private static ProjectListItem ToListItem(Project project) => new(project.Id, project.ProjectCode, project.Name, project.Client?.Name ?? string.Empty, project.SiteAddress, project.EstimatedBudget, project.ActualCost, project.ProgressPercent, project.Status, project.FoundationSystem, project.ConstructionPlanJson);
 }
