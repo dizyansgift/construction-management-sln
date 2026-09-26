@@ -380,6 +380,7 @@ export class App implements OnInit {
       amount: 8420,
       date: 'Sep 11, 2026',
       receiptName: '',
+      phaseId: 'A',
     },
     {
       category: 'Equipment',
@@ -389,6 +390,7 @@ export class App implements OnInit {
       amount: 3200,
       date: 'Sep 10, 2026',
       receiptName: '',
+      phaseId: 'A',
     },
     {
       category: 'Fuel',
@@ -398,6 +400,7 @@ export class App implements OnInit {
       amount: 680,
       date: 'Sep 09, 2026',
       receiptName: '',
+      phaseId: '',
     },
   ]);
   protected readonly payments = signal([
@@ -409,6 +412,7 @@ export class App implements OnInit {
       amount: 125000,
       status: 'Received',
       due: 'Sep 08, 2026',
+      phaseId: 'A',
     },
     {
       project: 'Riverside Medical Pavilion',
@@ -418,6 +422,7 @@ export class App implements OnInit {
       amount: 18400,
       status: 'Pending',
       due: 'Sep 15, 2026',
+      phaseId: 'A',
     },
     {
       project: 'Northline Apartments',
@@ -427,6 +432,7 @@ export class App implements OnInit {
       amount: 32200,
       status: 'Pending',
       due: 'Sep 18, 2026',
+      phaseId: '',
     },
   ]);
   protected readonly projectForm = {
@@ -452,6 +458,7 @@ export class App implements OnInit {
   };
   protected readonly expenseForm = {
     project: '',
+    phaseId: '',
     category: 'Materials',
     description: '',
     vendor: '',
@@ -462,6 +469,7 @@ export class App implements OnInit {
   };
   protected readonly paymentForm = {
     project: '',
+    phaseId: '',
     type: 'Supplier payment',
     party: '',
     invoice: '',
@@ -719,6 +727,70 @@ export class App implements OnInit {
 
   protected selectedPhaseActivities(): ConstructionActivity[] {
     return this.activePhase()?.activities.filter((activity) => activity.isEnabled || activity.isOptional) ?? [];
+  }
+
+  protected activePhaseSummary(): { enabledCount: number; completedCount: number; estimatedCost: number; actualCost: number } {
+    const phase = this.activePhase();
+    const enabledActivities = phase?.activities.filter((activity) => activity.isEnabled) ?? [];
+    return {
+      enabledCount: enabledActivities.length,
+      completedCount: enabledActivities.filter((activity) => activity.status === 'Completed').length,
+      estimatedCost: enabledActivities.reduce((sum, activity) => sum + activity.estimatedCost, 0),
+      actualCost: enabledActivities.reduce((sum, activity) => sum + activity.actualCost, 0),
+    };
+  }
+
+  protected phaseExpenses(phaseId: string) {
+    const projectName = this.selectedProject()?.name;
+    return this.expenses().filter(
+      (expense) => expense.phaseId === phaseId && (!projectName || expense.project === projectName),
+    );
+  }
+
+  protected phasePayments(phaseId: string) {
+    const projectName = this.selectedProject()?.name;
+    return this.payments().filter(
+      (payment) => payment.phaseId === phaseId && (!projectName || payment.project === projectName),
+    );
+  }
+
+  protected paymentIsCashIn(payment: { type: string }): boolean {
+    return payment.type === 'Customer payment';
+  }
+
+  protected phaseCashIn(phaseId: string): number {
+    return this.phasePayments(phaseId)
+      .filter((payment) => this.paymentIsCashIn(payment))
+      .reduce((sum, payment) => sum + payment.amount, 0);
+  }
+
+  protected phaseCashOut(phaseId: string): number {
+    const expenseTotal = this.phaseExpenses(phaseId).reduce((sum, expense) => sum + expense.amount, 0);
+    const outgoingPayments = this.phasePayments(phaseId)
+      .filter((payment) => !this.paymentIsCashIn(payment))
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    return expenseTotal + outgoingPayments;
+  }
+
+  protected phaseNetCash(phaseId: string): number {
+    return this.phaseCashIn(phaseId) - this.phaseCashOut(phaseId);
+  }
+
+  protected phaseShortLabel(phaseId: string): string {
+    if (!phaseId) return 'Unassigned';
+    return `Phase ${phaseId}`;
+  }
+
+  protected openExpenseForPhase(phaseId: string): void {
+    this.expenseForm.project = this.selectedProject()?.name ?? this.expenseForm.project;
+    this.expenseForm.phaseId = phaseId;
+    this.openExpenseForm();
+  }
+
+  protected openPaymentForPhase(phaseId: string): void {
+    this.paymentForm.project = this.selectedProject()?.name ?? this.paymentForm.project;
+    this.paymentForm.phaseId = phaseId;
+    this.openPaymentForm();
   }
 
   protected visibleConstructionPhases(): ConstructionPhase[] {
@@ -1125,6 +1197,7 @@ export class App implements OnInit {
       category: form.category,
       description: form.description.trim(),
       project: form.project,
+      phaseId: form.phaseId,
       vendor: form.vendor.trim(),
       amount: Number(form.amount),
       date: new Date(`${form.date}T00:00:00`).toLocaleDateString('en-IN', {
@@ -1147,6 +1220,7 @@ export class App implements OnInit {
     this.moduleNotice.set(`Expense added to ${expense.project}.`);
     Object.assign(form, {
       project: '',
+      phaseId: '',
       category: 'Materials',
       description: '',
       vendor: '',
@@ -1318,6 +1392,7 @@ export class App implements OnInit {
 
     const payment = {
       project: form.project,
+      phaseId: form.phaseId,
       type: form.type,
       party: form.party.trim(),
       invoice: form.invoice.trim(),
@@ -1334,6 +1409,7 @@ export class App implements OnInit {
     this.moduleNotice.set(`Payment ${payment.invoice} added to ${projectName}.`);
     Object.assign(form, {
       project: '',
+      phaseId: '',
       type: 'Supplier payment',
       party: '',
       invoice: '',
