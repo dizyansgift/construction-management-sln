@@ -2,6 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Project, ProjectsService } from './projects.service';
+import { FinanceService } from './finance.service';
 
 export type ActivityStatus = 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Delayed';
 
@@ -185,7 +186,9 @@ declare module './projects.service' {
 })
 export class App implements OnInit {
   private readonly projectsService = inject(ProjectsService);
+  private readonly financeService = inject(FinanceService);
   private readonly projectStorageKey = 'slate.projects';
+  private readonly apiProjectIds = signal<Set<string>>(new Set());
   protected readonly projects = signal<Project[]>([]);
   protected readonly activeSection = signal('Dashboard');
   protected readonly dashboardPeriod = signal('This week');
@@ -532,6 +535,7 @@ export class App implements OnInit {
 
     this.projectsService.getProjects().subscribe((apiProjects) => {
       if (apiProjects.length > 0) {
+        this.apiProjectIds.set(new Set(apiProjects.map((project) => project.id)));
         const existing = new Map(
           this.projects().map((project) => [project.id || project.projectCode, project]),
         );
@@ -539,6 +543,44 @@ export class App implements OnInit {
         const mergedProjects = [...existing.values()];
         this.projects.set(mergedProjects);
         this.saveProjects(mergedProjects);
+
+        const projectNameById = new Map(apiProjects.map((project) => [project.id, project.name]));
+        this.financeService.getExpenses().subscribe((apiExpenses) => {
+          if (!apiExpenses.length) return;
+          const existingKeys = new Set(this.expenses().map((expense) => `${expense.description}|${expense.date}|${expense.amount}`));
+          const mapped = apiExpenses
+            .map((expense) => ({
+              category: expense.category,
+              description: expense.description,
+              project: projectNameById.get(expense.projectId) ?? 'Unknown project',
+              vendor: expense.vendor,
+              amount: expense.amount,
+              date: new Date(expense.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+              receiptName: '',
+              phaseId: expense.phaseId ?? '',
+            }))
+            .filter((expense) => !existingKeys.has(`${expense.description}|${expense.date}|${expense.amount}`));
+          if (mapped.length) this.expenses.update((expenses) => [...mapped, ...expenses]);
+        });
+        this.financeService.getPayments().subscribe((apiPayments) => {
+          if (!apiPayments.length) return;
+          const existingInvoices = new Set(this.payments().map((payment) => payment.invoice));
+          const mapped = apiPayments
+            .filter((payment) => !existingInvoices.has(payment.invoiceNumber))
+            .map((payment) => ({
+              project: projectNameById.get(payment.projectId) ?? 'Unknown project',
+              type: payment.paymentType,
+              party: payment.partyName,
+              invoice: payment.invoiceNumber,
+              amount: payment.amount,
+              status: payment.status,
+              due: payment.dueDate
+                ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '',
+              phaseId: payment.phaseId ?? '',
+            }));
+          if (mapped.length) this.payments.update((payments) => [...mapped, ...payments]);
+        });
       }
     });
   }
@@ -1222,6 +1264,23 @@ export class App implements OnInit {
       return updatedProjects;
     });
     this.moduleNotice.set(`Expense added to ${expense.project}.`);
+
+    const expenseProjectId = this.projects().find((project) => project.name === expense.project)?.id;
+    if (expenseProjectId && this.apiProjectIds().has(expenseProjectId)) {
+      this.financeService
+        .createExpense({
+          projectId: expenseProjectId,
+          phaseId: expense.phaseId,
+          category: expense.category,
+          amount: expense.amount,
+          date: form.date,
+          vendor: expense.vendor,
+          description: expense.description,
+          paymentMethod: form.paymentMethod,
+        })
+        .subscribe();
+    }
+
     Object.assign(form, {
       project: '',
       phaseId: '',
@@ -1411,6 +1470,23 @@ export class App implements OnInit {
     const projectName = form.project;
     this.payments.update((payments) => [payment, ...payments]);
     this.moduleNotice.set(`Payment ${payment.invoice} added to ${projectName}.`);
+
+    const paymentProjectId = this.projects().find((project) => project.name === projectName)?.id;
+    if (paymentProjectId && this.apiProjectIds().has(paymentProjectId)) {
+      this.financeService
+        .createPayment({
+          projectId: paymentProjectId,
+          phaseId: payment.phaseId,
+          paymentType: payment.type,
+          partyName: payment.party,
+          invoiceNumber: payment.invoice,
+          amount: payment.amount,
+          dueDate: new Date(`${form.due}T00:00:00`).toISOString(),
+          status: payment.status,
+        })
+        .subscribe();
+    }
+
     Object.assign(form, {
       project: '',
       phaseId: '',
@@ -1518,7 +1594,10 @@ export class App implements OnInit {
     this.isSubmitting.set(true);
     const request = { ...this.projectForm };
     this.projectsService.createProject(request).subscribe({
-      next: (project) => this.addProject(project),
+      next: (project) => {
+        this.apiProjectIds.update((ids) => new Set([...ids, project.id]));
+        this.addProject(project);
+      },
       error: () =>
         this.addProject({
           id: crypto.randomUUID(),

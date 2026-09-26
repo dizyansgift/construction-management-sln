@@ -1,10 +1,10 @@
-services:
-  - type: pserv
-    name: construction-management-db
+databases:
+  - name: construction-management-db
     plan: free
     databaseName: construction_management
     user: construction_management
 
+services:
   # ASP.NET Core API, built from the existing Dockerfile
   - type: web
     name: construction-management-api
