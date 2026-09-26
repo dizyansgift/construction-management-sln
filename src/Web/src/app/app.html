@@ -168,9 +168,8 @@
                           </td>
                           <td>
                             <div class="progress-cell">
-                              <div class="mini-progress"><i [style.width.%]="activity.progress"></i></div>
-                              <input type="range" min="0" max="100" step="5" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
-                              <span>{{ activity.progress }}%</span>
+                              <input type="range" min="0" max="100" step="5" class="progress-slider" [style.background]="progressTrackStyle(activity.progress)" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
+                              <span class="progress-value">{{ activity.progress }}%</span>
                             </div>
                           </td>
                           <td><div class="activity-edit-fields dual-field"><label><span>Start</span><input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"></label><label><span>End</span><input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></label></div></td>

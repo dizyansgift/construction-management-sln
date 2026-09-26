@@ -638,6 +638,10 @@ export class App implements OnInit {
     );
   }
 
+  protected progressTrackStyle(value: number): string {
+    return `linear-gradient(to right, var(--green) ${value}%, #e5ede6 ${value}%)`;
+  }
+
   protected updateActivityProgress(activityId: string, value: number): void {
     const phases = this.constructionPhases();
     const nextPhases = phases.map((phase) => ({
