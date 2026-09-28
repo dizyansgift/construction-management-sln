@@ -33,6 +33,11 @@ public sealed class ProjectsController(IProjectService projectService) : Control
         {
             return Conflict(new { message = exception.Message });
         }
+        catch (Exception ex)
+        {
+            // Return server error with message to aid debugging (do not expose in production)
+            return StatusCode(500, new { message = "Server error while creating project.", detail = ex.Message });
+        }
     }
 
     [HttpPut("{id:guid}")]
