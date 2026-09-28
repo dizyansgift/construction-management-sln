@@ -1498,7 +1498,11 @@ export class App implements OnInit {
     }
 
     this.isSubmitting.set(true);
-    const request = { ...this.projectForm };
+    const request = {
+      ...this.projectForm,
+      startDate: this.projectForm.startDate || new Date().toISOString(),
+      expectedCompletionDate: this.projectForm.expectedCompletionDate || new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString(),
+    };
     this.projectsService.createProject(request).subscribe({
       next: (project) => this.addProject(project),
       error: () => {
