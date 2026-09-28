@@ -33,10 +33,11 @@ public sealed class LabourAttendance : Entity
 {
     public Guid ProjectId { get; set; }
     public string WorkerName { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public decimal DailyWage { get; set; }
     public decimal OvertimeHours { get; set; }
-    public bool Present { get; set; }
+    public string Status { get; set; } = "Present";
 }
 
 public sealed class Expense : Entity

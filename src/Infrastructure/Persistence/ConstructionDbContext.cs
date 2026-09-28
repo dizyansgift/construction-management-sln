@@ -37,6 +37,7 @@ public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext
         modelBuilder.Entity<Payment>().HasIndex(payment => payment.PhaseId);
         modelBuilder.Entity<ProgressUpdate>().HasIndex(update => new { update.ProjectId, update.Date });
         modelBuilder.Entity<SitePhoto>().HasIndex(photo => new { photo.ProjectId, photo.CapturedUtc });
+        modelBuilder.Entity<LabourAttendance>().HasIndex(attendance => new { attendance.ProjectId, attendance.WorkerName, attendance.Date });
         modelBuilder.Entity<BoqItem>().Property(item => item.EstimatedRate).HasPrecision(18, 2);
         modelBuilder.Entity<BoqItem>().Property(item => item.ActualRate).HasPrecision(18, 2);
         modelBuilder.Entity<Material>().Property(material => material.UnitPrice).HasPrecision(18, 2);
