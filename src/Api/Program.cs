@@ -23,7 +23,13 @@ builder.Services.AddDbContext<ConstructionDbContext>(options =>
 {
     if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
     {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("ConstructionDatabase"));
+        var conn = builder.Configuration.GetConnectionString("ConstructionDatabase");
+        if (string.IsNullOrWhiteSpace(conn))
+        {
+            throw new InvalidOperationException(
+                "Database provider is Postgres but ConnectionStrings:ConstructionDatabase is not configured. Set the environment variable ConnectionStrings__ConstructionDatabase or update appsettings.");
+        }
+        options.UseNpgsql(conn);
     }
     else if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
     {
