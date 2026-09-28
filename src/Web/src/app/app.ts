@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Project, ProjectsService } from './projects.service';
 import { FinanceService } from './finance.service';
 import { InventoryService } from './inventory.service';
+import { LabourService } from './labour.service';
 
 export type ActivityStatus = 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Delayed';
 
@@ -188,6 +189,7 @@ export class App implements OnInit {
   private readonly projectsService = inject(ProjectsService);
   private readonly financeService = inject(FinanceService);
   private readonly inventoryService = inject(InventoryService);
+  private readonly labourService = inject(LabourService);
   protected readonly projects = signal<Project[]>([]);
   protected readonly activeSection = signal('Dashboard');
   protected readonly dashboardPeriod = signal('This week');
@@ -207,6 +209,8 @@ export class App implements OnInit {
   protected readonly paymentFormError = signal('');
   protected readonly showMaterialForm = signal(false);
   protected readonly materialFormError = signal('');
+  protected readonly showAttendanceForm = signal(false);
+  protected readonly attendanceFormError = signal('');
   protected readonly darkMode = signal(false);
   protected readonly showEmployeeHistory = signal(false);
   protected readonly selectedProject = signal<Project | null>(null);
@@ -229,36 +233,9 @@ export class App implements OnInit {
   protected readonly boqItems = signal<
     { id?: string; project: string; category: string; description: string; unit: string; quantity: number; rate: number; amount: number }[]
   >([]);
-  protected readonly labour = [
-    {
-      name: 'Maya Singh',
-      role: 'Site engineer',
-      project: 'Riverside Medical Pavilion',
-      attendance: 'Present',
-      wage: 285,
-    },
-    {
-      name: 'Luis Ortega',
-      role: 'Concrete foreman',
-      project: 'Riverside Medical Pavilion',
-      attendance: 'Present',
-      wage: 240,
-    },
-    {
-      name: 'Alex Kim',
-      role: 'Procurement lead',
-      project: 'Cedar Street Retail',
-      attendance: 'Present',
-      wage: 220,
-    },
-    {
-      name: 'Northline Civil',
-      role: 'Masonry contractor',
-      project: 'Northline Apartments',
-      attendance: 'Pending',
-      wage: 1250,
-    },
-  ];
+  protected readonly labourRecords = signal<
+    { id?: string; project: string; name: string; role: string; attendance: string; wage: number; overtimeHours: number; date: string }[]
+  >([]);
   protected readonly expenses = signal<
     { id?: string; category: string; description: string; project: string; vendor: string; amount: number; date: string; receiptName: string; phaseId: string }[]
   >([]);
@@ -319,6 +296,70 @@ export class App implements OnInit {
     price: 0,
     supplier: '',
   };
+  protected readonly attendanceForm = {
+    project: '',
+    name: '',
+    role: '',
+    date: new Date().toISOString().slice(0, 10),
+    wage: 0,
+    overtimeHours: 0,
+    status: 'Present',
+  };
+
+  protected createAttendance(): void {
+    const form = this.attendanceForm;
+    if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
+      this.attendanceFormError.set('Project, worker name, role and date are required.');
+      return;
+    }
+
+    const record = {
+      projectId: this.projects().find((p) => p.name === form.project)?.id,
+      workerName: form.name.trim(),
+      role: form.role.trim(),
+      date: new Date(`${form.date}T00:00:00`).toISOString(),
+      dailyWage: Number(form.wage),
+      overtimeHours: Number(form.overtimeHours),
+      status: form.status,
+    };
+
+    // optimistic update
+    const display = {
+      id: String(Date.now()),
+      project: form.project,
+      name: form.name.trim(),
+      role: form.role.trim(),
+      attendance: form.status,
+      wage: Number(form.wage),
+      overtimeHours: Number(form.overtimeHours),
+      date: form.date,
+    };
+    this.labourRecords.update((list) => [display, ...list]);
+
+    if (record.projectId) {
+      this.labourService.recordAttendance(record).subscribe({
+        next: (saved) => {
+          // replace optimistic item id with server id when returned
+          this.labourRecords.update((list) => list.map((r) => (r.id === display.id ? { ...r, id: saved.id, date: (saved.date || saved.createdAt || form.date).slice(0, 10) } : r)));
+          this.moduleNotice.set('Attendance recorded.');
+        },
+        error: () => {
+          this.moduleNotice.set('Could not save attendance to server.');
+        },
+      });
+    }
+
+    Object.assign(form, {
+      project: '',
+      name: '',
+      role: '',
+      date: new Date().toISOString().slice(0, 10),
+      wage: 0,
+      overtimeHours: 0,
+      status: 'Present',
+    });
+    this.showAttendanceForm.set(false);
+  }
   protected readonly totalBudget = (total: number, project: { estimatedBudget: number }) =>
     total + project.estimatedBudget;
   protected readonly totalActual = (total: number, project: { actualCost: number }) =>
@@ -411,6 +452,20 @@ export class App implements OnInit {
           amount: item.quantity * item.estimatedRate,
         }));
         this.boqItems.set(mapped);
+      });
+
+      this.labourService.getAttendance().subscribe((apiRecords) => {
+        const mapped = apiRecords.map((record) => ({
+          id: record.id,
+          project: projectNameById.get(record.projectId) ?? 'Unknown project',
+          name: record.workerName,
+          role: record.role,
+          attendance: record.status,
+          wage: record.dailyWage,
+          overtimeHours: record.overtimeHours,
+          date: record.date.slice(0, 10),
+        }));
+        this.labourRecords.set(mapped);
       });
     });
   }
@@ -879,7 +934,7 @@ export class App implements OnInit {
         ...this.boqItems().map((item) => item.project),
         ...this.expenses().map((expense) => expense.project),
         ...this.payments().map((payment) => payment.project),
-        ...this.labour.map((worker) => worker.project),
+        ...this.labourRoster().map((worker) => worker.project),
         ...this.materials().map((material) => material.project),
       ]),
     ].sort();
@@ -917,10 +972,20 @@ export class App implements OnInit {
       : this.materials().filter((material) => material.project === this.selectedProjectFilter());
   }
 
+  protected labourRoster(): { project: string; name: string; role: string; attendance: string; wage: number }[] {
+    const latestByWorker = new Map<string, { project: string; name: string; role: string; attendance: string; wage: number; date: string }>();
+    for (const record of this.labourRecords()) {
+      const key = `${record.project}|${record.name}`;
+      const existing = latestByWorker.get(key);
+      if (!existing || record.date > existing.date) latestByWorker.set(key, record);
+    }
+    return [...latestByWorker.values()];
+  }
+
   protected visibleLabour() {
     return this.selectedProjectFilter() === 'All projects'
-      ? this.labour
-      : this.labour.filter((worker) => worker.project === this.selectedProjectFilter());
+      ? this.labourRoster()
+      : this.labourRoster().filter((worker) => worker.project === this.selectedProjectFilter());
   }
 
   protected visibleExpenses() {
@@ -1228,42 +1293,34 @@ export class App implements OnInit {
     project: string;
     attendance: string;
   }): { period: string; project: string; work: string; status: string }[] {
-    const workByRole: Record<string, string> = {
-      'Site engineer': 'Site supervision, measurements, and daily progress review',
-      'Concrete foreman': 'Foundation concrete, reinforcement, and curing coordination',
-      'Procurement lead': 'Material ordering, delivery checks, and supplier coordination',
-      'Masonry contractor': 'External blockwork, wall alignment, and finishing preparation',
-    };
-    return [
-      {
-        period: 'Current assignment',
-        project: employee.project,
-        work: workByRole[employee.role] ?? 'Construction site operations',
-        status: employee.attendance,
-      },
-      {
-        period: 'Previous assignment',
-        project: employee.project,
-        work: 'Completed assigned construction activities and submitted site records',
-        status: 'Completed',
-      },
-    ];
+    const records = this.labourRecords()
+      .filter((record) => record.name === employee.name && record.project === employee.project)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    if (!records.length) {
+      return [{ period: 'No records yet', project: employee.project, work: 'Record attendance to build a work history.', status: employee.attendance }];
+    }
+    return records.map((record) => ({
+      period: record.date,
+      project: record.project,
+      work: `${record.role} · ${record.overtimeHours > 0 ? `${record.overtimeHours}h overtime` : 'Regular shift'}`,
+      status: record.attendance,
+    }));
   }
 
   protected employeeAttendanceHistory(employee: {
+    name: string;
+    project: string;
     attendance: string;
   }): { date: string; status: string; hours: string; project: string }[] {
-    return [
-      {
-        date: '13 Sep 2026',
-        status: employee.attendance,
-        hours: employee.attendance === 'Present' ? '8 hours' : 'Awaiting entry',
-        project: 'Current assignment',
-      },
-      { date: '12 Sep 2026', status: 'Present', hours: '8 hours', project: 'Current assignment' },
-      { date: '11 Sep 2026', status: 'Present', hours: '8 hours', project: 'Current assignment' },
-      { date: '10 Sep 2026', status: 'Half day', hours: '4 hours', project: 'Current assignment' },
-    ];
+    const records = this.labourRecords()
+      .filter((record) => record.name === employee.name && record.project === employee.project)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return records.map((record) => ({
+      date: record.date,
+      status: record.attendance,
+      hours: record.attendance === 'Present' ? `${8 + record.overtimeHours} hours` : record.attendance === 'Half day' ? '4 hours' : 'Awaiting entry',
+      project: record.project,
+    }));
   }
 
   protected createPayment(): void {
