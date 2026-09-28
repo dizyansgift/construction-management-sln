@@ -1,10 +1,12 @@
 using ConstructionManagement.Application.Projects;
 using ConstructionManagement.Application.Finance;
 using ConstructionManagement.Application.Inventory;
+using ConstructionManagement.Application.Labour;
 using ConstructionManagement.Infrastructure.Persistence;
 using ConstructionManagement.Infrastructure.Projects;
 using ConstructionManagement.Infrastructure.Finance;
 using ConstructionManagement.Infrastructure.Inventory;
+using ConstructionManagement.Infrastructure.Labour;
 using ConstructionManagement.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -57,10 +59,20 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddScoped<ILabourService, LabourService>();
 builder.Services.AddCors(options => options.AddPolicy("Clients", policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
+
+// Log chosen database provider and whether a connection string is present (helpful for deployments)
+{
+    var dbProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+    var conn = builder.Configuration.GetConnectionString("ConstructionDatabase");
+    var hasConn = !string.IsNullOrWhiteSpace(conn);
+    Console.WriteLine($"[startup] Database provider: {dbProvider}");
+    Console.WriteLine(hasConn ? "[startup] ConstructionDatabase connection string is present." : "[startup] ConstructionDatabase connection string is NOT present.");
+}
 
 if (app.Environment.IsDevelopment())
 {
