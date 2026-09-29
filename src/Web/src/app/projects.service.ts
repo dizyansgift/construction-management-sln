@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 
 export interface Project {
   id: string;
@@ -46,7 +46,13 @@ export class ProjectsService {
       startDate: request.startDate || null,
       expectedCompletionDate: request.expectedCompletionDate || null,
     };
-    return this.http.post<Project>(this.endpoint, payload);
+    return this.http.post<Project>(this.endpoint, payload).pipe(
+      catchError((err) => {
+        // Try to extract a helpful message from the API error response
+        const message = err?.error?.message || err?.error || err?.message || 'Could not save the project to the database. Please try again.';
+        return throwError(() => new Error(message));
+      }),
+    );
   }
 
   updateConstructionPlan(id: string, request: { foundationSystem: string; constructionPlanJson: string; progressPercent: number; actualCost: number }): Observable<void> {

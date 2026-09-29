@@ -1505,9 +1505,9 @@ export class App implements OnInit {
     };
     this.projectsService.createProject(request).subscribe({
       next: (project) => this.addProject(project),
-      error: () => {
+      error: (err: Error) => {
         this.isSubmitting.set(false);
-        this.formError.set('Hey,Could not save the project to the database. Please try again.');
+        this.formError.set(err?.message || 'Could not save the project to the database. Please try again.');
       },
     });
   }
