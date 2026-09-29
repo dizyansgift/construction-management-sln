@@ -236,6 +236,8 @@ export class App implements OnInit {
   protected readonly labourRecords = signal<
     { id?: string; project: string; name: string; role: string; attendance: string; wage: number; overtimeHours: number; date: string }[]
   >([]);
+  // Template expects `labour` — alias the signal so templates compile
+  protected readonly labour = this.labourRecords;
   protected readonly expenses = signal<
     { id?: string; category: string; description: string; project: string; vendor: string; amount: number; date: string; receiptName: string; phaseId: string }[]
   >([]);
