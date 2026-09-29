@@ -33,7 +33,9 @@ export interface CreateProjectRequest {
 @Injectable({ providedIn: 'root' })
 export class ProjectsService {
   private readonly http = inject(HttpClient);
-  private readonly endpoint = '/api/projects';
+  // Allow runtime configuration of API host. If not provided, use relative paths.
+  private readonly API_BASE: string = (window as any).__env?.API_BASE ?? '';
+  private readonly endpoint = (this.API_BASE || '') + '/api/projects';
 
   getProjects(): Observable<Project[]> {
     return this.http.get<Project[]>(this.endpoint).pipe(catchError(() => of([])));
