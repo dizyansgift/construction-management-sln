@@ -1507,7 +1507,7 @@ export class App implements OnInit {
       next: (project) => this.addProject(project),
       error: () => {
         this.isSubmitting.set(false);
-        this.formError.set('Could not save the project to the database. Please try again.');
+        this.formError.set('Hey,Could not save the project to the database. Please try again.');
       },
     });
   }
