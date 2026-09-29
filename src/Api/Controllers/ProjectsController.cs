@@ -75,7 +75,16 @@ public sealed class ProjectsController(IProjectService projectService) : Control
     public async Task<IActionResult> Update(Guid id, UpdateProjectRequest request, CancellationToken cancellationToken) => await projectService.UpdateAsync(id, request, cancellationToken) ? NoContent() : NotFound();
 
     [HttpPut("{id:guid}/construction-plan")]
-    public async Task<IActionResult> UpdateConstructionPlan(Guid id, UpdateConstructionPlanRequest request, CancellationToken cancellationToken) => await projectService.UpdateConstructionPlanAsync(id, request, cancellationToken) ? NoContent() : NotFound();
+    public async Task<IActionResult> UpdateConstructionPlan(Guid id, [FromBody] UpdateConstructionPlanRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
+        var updated = await projectService.UpdateConstructionPlanAsync(id, request, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken) => await projectService.ArchiveAsync(id, cancellationToken) ? NoContent() : NotFound();

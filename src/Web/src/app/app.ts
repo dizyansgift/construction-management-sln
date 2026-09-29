@@ -560,10 +560,18 @@ export class App implements OnInit {
         .updateConstructionPlan(activeProject.id, {
           foundationSystem,
           constructionPlanJson: JSON.stringify(nextPhases),
-          progressPercent,
-          actualCost,
+          progressPercent: Number(progressPercent || 0),
+          actualCost: Number(actualCost || 0),
         })
-        .subscribe();
+        .subscribe({
+          next: () => {
+            // success - optionally refresh project list or mark saved state
+          },
+          error: (err: any) => {
+            console.error('Failed to persist construction plan', err);
+            this.moduleNotice.set('Could not save construction plan to server. Changes are local only.');
+          },
+        });
     }
   }
 
