@@ -565,7 +565,20 @@ export class App implements OnInit {
         })
         .subscribe({
           next: () => {
-            // success - optionally refresh project list or mark saved state
+            // refresh projects from server to ensure persisted state is displayed
+            this.projectsService.getProjects().subscribe((apiProjects) => {
+              const projectsWithPlans = apiProjects.map((project) => ({
+                ...project,
+                constructionPhases: this.parseConstructionPlan(project),
+              }));
+              this.projects.set(projectsWithPlans);
+              const refreshed = projectsWithPlans.find((p) => p.id === activeProject.id) ?? null;
+              if (refreshed) {
+                this.selectedProject.set(refreshed);
+                this.constructionPhases.set(refreshed.constructionPhases ?? createDefaultConstructionPhases());
+              }
+            });
+            this.moduleNotice.set('Construction plan saved.');
           },
           error: (err: any) => {
             console.error('Failed to persist construction plan', err);
