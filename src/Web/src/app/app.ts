@@ -307,58 +307,58 @@ export class App implements OnInit {
   };
 
   protected createAttendance(): void {
-    const form = this.attendanceForm;
-    if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
-      this.attendanceFormError.set('Project, worker name, role and date are required.');
-      return;
-    }
+    // const form = this.attendanceForm;
+    // if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
+    //   this.attendanceFormError.set('Project, worker name, role and date are required.');
+    //   return;
+    // }
 
-    const record = {
-      projectId: this.projects().find((p) => p.name === form.project)?.id,
-      workerName: form.name.trim(),
-      role: form.role.trim(),
-      date: new Date(`${form.date}T00:00:00`).toISOString(),
-      dailyWage: Number(form.wage),
-      overtimeHours: Number(form.overtimeHours),
-      status: form.status,
-    };
+    // const record = {
+    //   projectId: this.projects().find((p) => p.name === form.project)?.id,
+    //   workerName: form.name.trim(),
+    //   role: form.role.trim(),
+    //   date: new Date(`${form.date}T00:00:00`).toISOString(),
+    //   dailyWage: Number(form.wage),
+    //   overtimeHours: Number(form.overtimeHours),
+    //   status: form.status,
+    // };
 
-    // optimistic update
-    const display = {
-      id: String(Date.now()),
-      project: form.project,
-      name: form.name.trim(),
-      role: form.role.trim(),
-      attendance: form.status,
-      wage: Number(form.wage),
-      overtimeHours: Number(form.overtimeHours),
-      date: form.date,
-    };
-    this.labourRecords.update((list) => [display, ...list]);
+    // // optimistic update
+    // const display = {
+    //   id: String(Date.now()),
+    //   project: form.project,
+    //   name: form.name.trim(),
+    //   role: form.role.trim(),
+    //   attendance: form.status,
+    //   wage: Number(form.wage),
+    //   overtimeHours: Number(form.overtimeHours),
+    //   date: form.date,
+    // };
+    // this.labourRecords.update((list) => [display, ...list]);
 
-    if (record.projectId) {
-      this.labourService.recordAttendance(record).subscribe({
-        next: (saved) => {
-          // replace optimistic item id with server id when returned
-          this.labourRecords.update((list) => list.map((r) => (r.id === display.id ? { ...r, id: saved.id, date: (saved.date || saved.createdAt || form.date).slice(0, 10) } : r)));
-          this.moduleNotice.set('Attendance recorded.');
-        },
-        error: () => {
-          this.moduleNotice.set('Could not save attendance to server.');
-        },
-      });
-    }
+    // if (record.projectId) {
+    //   this.labourService.recordAttendance(record).subscribe({
+    //     next: (saved) => {
+    //       // replace optimistic item id with server id when returned
+    //       this.labourRecords.update((list) => list.map((r) => (r.id === display.id ? { ...r, id: saved.id, date: (saved.date || saved.createdAt || form.date).slice(0, 10) } : r)));
+    //       this.moduleNotice.set('Attendance recorded.');
+    //     },
+    //     error: () => {
+    //       this.moduleNotice.set('Could not save attendance to server.');
+    //     },
+    //   });
+    // }
 
-    Object.assign(form, {
-      project: '',
-      name: '',
-      role: '',
-      date: new Date().toISOString().slice(0, 10),
-      wage: 0,
-      overtimeHours: 0,
-      status: 'Present',
-    });
-    this.showAttendanceForm.set(false);
+    // Object.assign(form, {
+    //   project: '',
+    //   name: '',
+    //   role: '',
+    //   date: new Date().toISOString().slice(0, 10),
+    //   wage: 0,
+    //   overtimeHours: 0,
+    //   status: 'Present',
+    // });
+    // this.showAttendanceForm.set(false);
   }
   protected readonly totalBudget = (total: number, project: { estimatedBudget: number }) =>
     total + project.estimatedBudget;

@@ -17,6 +17,19 @@ export interface Project {
   constructionPlanJson?: string | null;
 }
 
+export interface CreateProjectRequest {
+  projectCode: string;
+  name: string;
+  clientName: string;
+  clientContact: string;
+  siteAddress: string;
+  startDate: string | null;
+  expectedCompletionDate: string | null;
+  estimatedBudget: number;
+  projectManager: string;
+  description: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProjectsService {
   private readonly http = inject(HttpClient);
@@ -26,8 +39,14 @@ export class ProjectsService {
     return this.http.get<Project[]>(this.endpoint).pipe(catchError(() => of([])));
   }
 
-  createProject(request: { projectCode: string; name: string; clientName: string; clientContact: string; siteAddress: string; startDate: string; expectedCompletionDate: string; estimatedBudget: number; projectManager: string; description: string }): Observable<Project> {
-    return this.http.post<Project>(this.endpoint, request);
+  createProject(request: CreateProjectRequest): Observable<Project> {
+    // Normalize empty date strings to null so backend can bind to nullable DateTime
+    const payload = {
+      ...request,
+      startDate: request.startDate || null,
+      expectedCompletionDate: request.expectedCompletionDate || null,
+    };
+    return this.http.post<Project>(this.endpoint, payload);
   }
 
   updateConstructionPlan(id: string, request: { foundationSystem: string; constructionPlanJson: string; progressPercent: number; actualCost: number }): Observable<void> {

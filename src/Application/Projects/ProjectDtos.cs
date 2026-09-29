@@ -21,8 +21,8 @@ public sealed record CreateProjectRequest(
     string ClientName,
     string ClientContact,
     string SiteAddress,
-    DateTime StartDate,
-    DateTime ExpectedCompletionDate,
+    DateTime? StartDate,
+    DateTime? ExpectedCompletionDate,
     decimal EstimatedBudget,
     string ProjectManager,
     string Description);

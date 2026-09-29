@@ -18,8 +18,13 @@ public sealed class ProjectsController(IProjectService projectService) : Control
     }
 
     [HttpPost]
-    public async Task<ActionResult<ProjectListItem>> Create(CreateProjectRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProjectListItem>> Create([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
     {
+        if (request is null)
+        {
+            return BadRequest(new { message = "Request body is required." });
+        }
+
         try
         {
             var project = await projectService.CreateAsync(request, cancellationToken);

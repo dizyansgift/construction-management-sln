@@ -20,7 +20,9 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
     public async Task<ProjectListItem> CreateAsync(CreateProjectRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Name)) throw new ArgumentException("Project name is required.");
-        if (request.ExpectedCompletionDate < request.StartDate) throw new ArgumentException("Expected completion cannot be before the start date.");
+        var startDate = request.StartDate ?? DateTime.UtcNow;
+        var expectedCompletion = request.ExpectedCompletionDate ?? startDate.AddMonths(6);
+        if (expectedCompletion < startDate) throw new ArgumentException("Expected completion cannot be before the start date.");
         if (request.EstimatedBudget < 0) throw new ArgumentException("Estimated budget cannot be negative.");
         if (await dbContext.Projects.AnyAsync(project => project.ProjectCode == request.ProjectCode, cancellationToken)) throw new InvalidOperationException("Project code already exists.");
 
@@ -37,8 +39,8 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
             Name = request.Name,
             Client = client,
             SiteAddress = request.SiteAddress,
-            StartDate = request.StartDate,
-            ExpectedCompletionDate = request.ExpectedCompletionDate,
+            StartDate = startDate,
+            ExpectedCompletionDate = expectedCompletion,
             EstimatedBudget = request.EstimatedBudget,
             ProjectManager = request.ProjectManager,
             Description = request.Description
