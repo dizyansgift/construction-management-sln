@@ -31,6 +31,10 @@ public sealed class ProjectsController(IProjectService projectService) : Control
             return BadRequest(new { message = "Request body is required." });
         }
 
+        // Normalize empty date strings to null to avoid JsonSerializer failing on empty strings
+        body = body.Replace("\"startDate\":\"\"", "\"startDate\":null", StringComparison.OrdinalIgnoreCase);
+        body = body.Replace("\"expectedCompletionDate\":\"\"", "\"expectedCompletionDate\":null", StringComparison.OrdinalIgnoreCase);
+
         CreateProjectRequest? request;
         try
         {
