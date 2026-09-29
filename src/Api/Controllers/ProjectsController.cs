@@ -18,11 +18,33 @@ public sealed class ProjectsController(IProjectService projectService) : Control
     }
 
     [HttpPost]
-    public async Task<ActionResult<ProjectListItem>> Create([FromBody] CreateProjectRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProjectListItem>> Create(CancellationToken cancellationToken)
     {
-        if (request is null)
+        string body;
+        using (var reader = new StreamReader(Request.Body))
+        {
+            body = await reader.ReadToEndAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
         {
             return BadRequest(new { message = "Request body is required." });
+        }
+
+        CreateProjectRequest? request;
+        try
+        {
+            var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            request = System.Text.Json.JsonSerializer.Deserialize<CreateProjectRequest>(body, opts);
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            return BadRequest(new { message = "Invalid JSON payload.", detail = ex.Message });
+        }
+
+        if (request is null)
+        {
+            return BadRequest(new { message = "Request could not be deserialized into CreateProjectRequest." });
         }
 
         try
