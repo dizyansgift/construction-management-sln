@@ -29,18 +29,31 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddOpenApi();
-var databaseProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+var databaseProvider = builder.Configuration["Database:Provider"];
+if (string.IsNullOrWhiteSpace(databaseProvider))
+{
+    databaseProvider = "Sqlite";
+}
 builder.Services.AddDbContext<ConstructionDbContext>(options =>
 {
-    if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+    var configured = builder.Configuration.GetConnectionString("ConstructionDatabase");
+    var postgres = PostgresConnection.Resolve(
+        configured,
+        Environment.GetEnvironmentVariable("DATABASE_URL"),
+        Environment.GetEnvironmentVariable("POSTGRES_URL"),
+        builder.Configuration["Database:ConnectionString"]);
+    var usePostgres = databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase)
+        || PostgresConnection.LooksLikePostgres(postgres)
+        || PostgresConnection.LooksLikePostgres(configured);
+
+    if (usePostgres)
     {
-        var conn = builder.Configuration.GetConnectionString("ConstructionDatabase");
-        if (string.IsNullOrWhiteSpace(conn))
+        if (string.IsNullOrWhiteSpace(postgres))
         {
             throw new InvalidOperationException(
-                "Database provider is Postgres but ConnectionStrings:ConstructionDatabase is not configured. Set the environment variable ConnectionStrings__ConstructionDatabase or update appsettings.");
+                "Database provider is Postgres but no usable connection string was found. Set ConnectionStrings__ConstructionDatabase or DATABASE_URL.");
         }
-        options.UseNpgsql(conn);
+        options.UseNpgsql(postgres);
     }
     else if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
     {
@@ -48,7 +61,10 @@ builder.Services.AddDbContext<ConstructionDbContext>(options =>
     }
     else
     {
-        options.UseSqlite(builder.Configuration.GetConnectionString("ConstructionDatabase"));
+        var sqlite = string.IsNullOrWhiteSpace(configured) || PostgresConnection.LooksLikePostgres(configured)
+            ? "Data Source=construction.db"
+            : configured;
+        options.UseSqlite(sqlite);
     }
 });
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -88,11 +104,13 @@ var app = builder.Build();
 
 // Log chosen database provider and whether a connection string is present (helpful for deployments)
 {
-    var dbProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
-    var conn = builder.Configuration.GetConnectionString("ConstructionDatabase");
+    var dbProvider = databaseProvider;
+    var conn = PostgresConnection.Resolve(
+        builder.Configuration.GetConnectionString("ConstructionDatabase"),
+        Environment.GetEnvironmentVariable("DATABASE_URL")) ?? builder.Configuration.GetConnectionString("ConstructionDatabase");
     var hasConn = !string.IsNullOrWhiteSpace(conn);
     Console.WriteLine($"[startup] Database provider: {dbProvider}");
-    Console.WriteLine(hasConn ? "[startup] ConstructionDatabase connection string is present." : "[startup] ConstructionDatabase connection string is NOT present.");
+    Console.WriteLine(hasConn ? "[startup] Database connection string is present." : "[startup] Database connection string is NOT present.");
 }
 
 if (app.Environment.IsDevelopment())
@@ -104,12 +122,12 @@ app.UseCors("Clients");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan2" }));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan3" }));
 app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    version = "2026-10-01-plan2",
+    version = "2026-10-01-plan3",
     commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT"),
     endpoints = new[]
     {

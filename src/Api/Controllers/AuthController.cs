@@ -30,7 +30,10 @@ public sealed class AuthController(UserManager<ApplicationUser> userManager, ICo
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Could not create the account.", detail = ex.Message });
+            var detail = ex.Message.Contains("initialization string", StringComparison.OrdinalIgnoreCase)
+                ? "The database connection string is invalid. Check ConnectionStrings__ConstructionDatabase or DATABASE_URL on the API service."
+                : ex.Message;
+            return StatusCode(500, new { message = "Could not create the account.", detail });
         }
     }
 
@@ -50,7 +53,10 @@ public sealed class AuthController(UserManager<ApplicationUser> userManager, ICo
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "Could not sign in.", detail = ex.Message });
+            var detail = ex.Message.Contains("initialization string", StringComparison.OrdinalIgnoreCase)
+                ? "The database connection string is invalid. Check ConnectionStrings__ConstructionDatabase or DATABASE_URL on the API service."
+                : ex.Message;
+            return StatusCode(500, new { message = "Could not sign in.", detail });
         }
     }
 
