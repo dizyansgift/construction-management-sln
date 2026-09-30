@@ -9,12 +9,17 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
 {
     public async Task<IReadOnlyList<ProjectListItem>> GetAsync(CancellationToken cancellationToken = default)
     {
-        return await QueryActiveListItems().OrderBy(project => project.Name).ToListAsync(cancellationToken);
+        var projects = await ActiveProjects()
+            .OrderBy(project => project.Name)
+            .ToListAsync(cancellationToken);
+        return projects.Select(ToListItem).ToList();
     }
 
     public async Task<ProjectListItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await QueryActiveListItems().Where(project => project.Id == id).SingleOrDefaultAsync(cancellationToken);
+        var project = await ActiveProjects()
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        return project is null ? null : ToListItem(project);
     }
 
     public async Task<ProjectListItem> CreateAsync(CreateProjectRequest request, CancellationToken cancellationToken = default)
@@ -83,9 +88,7 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
 
     public async Task<ProjectListItem?> GetConstructionPlanAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await QueryActiveListItems()
-            .Where(project => project.Id == id)
-            .SingleOrDefaultAsync(cancellationToken);
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<bool> ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
@@ -98,21 +101,21 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         return true;
     }
 
-    private IQueryable<ProjectListItem> QueryActiveListItems() =>
+    private IQueryable<Project> ActiveProjects() =>
         dbContext.Projects.AsNoTracking()
-            .Where(project => !project.IsArchived)
-            .Select(project => new ProjectListItem(
-            project.Id,
-            project.ProjectCode,
-            project.Name,
-            project.Client != null ? project.Client.Name : string.Empty,
-            project.SiteAddress,
-            project.EstimatedBudget,
-            project.ActualCost,
-            project.ProgressPercent,
-            project.Status,
-            project.FoundationSystem,
-            project.ConstructionPlanJson));
+            .Include(project => project.Client)
+            .Where(project => !project.IsArchived);
 
-    private static ProjectListItem ToListItem(Project project) => new(project.Id, project.ProjectCode, project.Name, project.Client?.Name ?? string.Empty, project.SiteAddress, project.EstimatedBudget, project.ActualCost, project.ProgressPercent, project.Status, project.FoundationSystem, project.ConstructionPlanJson);
+    private static ProjectListItem ToListItem(Project project) => new(
+        project.Id,
+        project.ProjectCode,
+        project.Name,
+        project.Client?.Name ?? string.Empty,
+        project.SiteAddress,
+        project.EstimatedBudget,
+        project.ActualCost,
+        project.ProgressPercent,
+        project.Status,
+        project.FoundationSystem ?? string.Empty,
+        project.ConstructionPlanJson);
 }
