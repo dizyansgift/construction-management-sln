@@ -26,6 +26,8 @@ public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext
             entity.Property(project => project.EstimatedBudget).HasPrecision(18, 2);
             entity.Property(project => project.ActualCost).HasPrecision(18, 2);
             entity.Property(project => project.ProgressPercent).HasPrecision(5, 2);
+            entity.Property(project => project.FoundationSystem).HasMaxLength(128);
+            entity.Property(project => project.ConstructionPlanJson).HasColumnType("text");
             entity.HasOne(project => project.Client).WithMany(client => client.Projects).HasForeignKey(project => project.ClientId).OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<Client>().HasIndex(client => client.Name);

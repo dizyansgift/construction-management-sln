@@ -75,6 +75,8 @@ public sealed class ProjectsController(IProjectService projectService) : Control
     public async Task<IActionResult> Update(Guid id, UpdateProjectRequest request, CancellationToken cancellationToken) => await projectService.UpdateAsync(id, request, cancellationToken) ? NoContent() : NotFound();
 
     [HttpPut("{id:guid}/construction-plan")]
+    [HttpPost("{id:guid}/construction-plan")]
+    [RequestSizeLimit(20_000_000)]
     public async Task<IActionResult> UpdateConstructionPlan(Guid id, [FromBody] UpdateConstructionPlanRequest request, CancellationToken cancellationToken)
     {
         if (request is null)
@@ -82,8 +84,15 @@ public sealed class ProjectsController(IProjectService projectService) : Control
             return BadRequest(new { message = "Request body is required." });
         }
 
-        var updated = await projectService.UpdateConstructionPlanAsync(id, request, cancellationToken);
-        return updated ? NoContent() : NotFound();
+        try
+        {
+            var updated = await projectService.UpdateConstructionPlanAsync(id, request, cancellationToken);
+            return updated ? NoContent() : NotFound(new { message = "Project not found." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not save construction plan.", detail = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}/construction-plan")]

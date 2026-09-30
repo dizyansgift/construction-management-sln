@@ -23,7 +23,7 @@ public sealed class LabourService(ConstructionDbContext dbContext) : ILabourServ
             ProjectId = request.ProjectId,
             WorkerName = request.WorkerName,
             Role = request.Role,
-            Date = request.Date,
+            Date = DateTimeUtc.From(request.Date),
             DailyWage = request.DailyWage,
             OvertimeHours = request.OvertimeHours,
             Status = request.Status,

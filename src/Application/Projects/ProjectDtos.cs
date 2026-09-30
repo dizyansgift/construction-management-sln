@@ -25,7 +25,8 @@ public sealed record CreateProjectRequest(
     DateTime? ExpectedCompletionDate,
     decimal EstimatedBudget,
     string ProjectManager,
-    string Description);
+    string Description,
+    string? FoundationSystem = null);
 
 public sealed record UpdateProjectRequest(
     string Name,
@@ -38,7 +39,7 @@ public sealed record UpdateProjectRequest(
     string Description);
 
 public sealed record UpdateConstructionPlanRequest(
-    string FoundationSystem,
-    string ConstructionPlanJson,
+    string? FoundationSystem,
+    string? ConstructionPlanJson,
     decimal ProgressPercent,
     decimal ActualCost);

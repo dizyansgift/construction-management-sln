@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { apiUrl } from './api-url';
 
 export interface ApiMaterial {
   id: string;
@@ -28,8 +29,8 @@ export interface ApiBoqItem {
 @Injectable({ providedIn: 'root' })
 export class InventoryService {
   private readonly http = inject(HttpClient);
-  private readonly materialsEndpoint = '/api/materials';
-  private readonly boqEndpoint = '/api/boq-items';
+  private readonly materialsEndpoint = apiUrl('/api/materials');
+  private readonly boqEndpoint = apiUrl('/api/boq-items');
 
   getMaterials(): Observable<ApiMaterial[]> {
     return this.http.get<ApiMaterial[]>(this.materialsEndpoint).pipe(catchError(() => of([])));

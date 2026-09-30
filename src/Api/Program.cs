@@ -9,14 +9,23 @@ using ConstructionManagement.Infrastructure.Inventory;
 using ConstructionManagement.Infrastructure.Labour;
 using ConstructionManagement.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 20_000_000);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 20_000_000);
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
 builder.Services.AddOpenApi();
 var databaseProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
 builder.Services.AddDbContext<ConstructionDbContext>(options =>
@@ -93,7 +102,7 @@ app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    endpoints = new[] { "/api/projects", "/api/auth" }
+    endpoints = new[] { "/api/projects", "/api/projects/{id}/construction-plan", "/api/auth" }
 }));
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
@@ -103,6 +112,23 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ConstructionDbContext>();
     await dbContext.Database.EnsureCreatedAsync();
+    await EnsureConstructionPlanSchemaAsync(dbContext, databaseProvider);
 }
 
 app.Run();
+
+static async Task EnsureConstructionPlanSchemaAsync(ConstructionDbContext dbContext, string databaseProvider)
+{
+    if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""");
+        await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""");
+        return;
+    }
+
+    if (databaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+    {
+        try { await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN "FoundationSystem" TEXT NOT NULL DEFAULT '';"""); } catch { /* already exists */ }
+        try { await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN "ConstructionPlanJson" TEXT NULL;"""); } catch { /* already exists */ }
+    }
+}

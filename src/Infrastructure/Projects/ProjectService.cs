@@ -9,19 +9,19 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
 {
     public async Task<IReadOnlyList<ProjectListItem>> GetAsync(CancellationToken cancellationToken = default)
     {
-        return await dbContext.Projects.AsNoTracking().Where(project => !project.IsArchived).OrderBy(project => project.Name).Select(project => ToListItem(project)).ToListAsync(cancellationToken);
+        return await QueryActiveListItems().OrderBy(project => project.Name).ToListAsync(cancellationToken);
     }
 
     public async Task<ProjectListItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Projects.AsNoTracking().Where(project => project.Id == id && !project.IsArchived).Select(project => ToListItem(project)).SingleOrDefaultAsync(cancellationToken);
+        return await QueryActiveListItems().Where(project => project.Id == id).SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<ProjectListItem> CreateAsync(CreateProjectRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Name)) throw new ArgumentException("Project name is required.");
-        var startDate = request.StartDate ?? DateTime.UtcNow;
-        var expectedCompletion = request.ExpectedCompletionDate ?? startDate.AddMonths(6);
+        var startDate = DateTimeUtc.From(request.StartDate ?? DateTime.UtcNow);
+        var expectedCompletion = DateTimeUtc.From(request.ExpectedCompletionDate ?? startDate.AddMonths(6));
         if (expectedCompletion < startDate) throw new ArgumentException("Expected completion cannot be before the start date.");
         if (request.EstimatedBudget < 0) throw new ArgumentException("Estimated budget cannot be negative.");
         if (await dbContext.Projects.AnyAsync(project => project.ProjectCode == request.ProjectCode, cancellationToken)) throw new InvalidOperationException("Project code already exists.");
@@ -43,7 +43,8 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
             ExpectedCompletionDate = expectedCompletion,
             EstimatedBudget = request.EstimatedBudget,
             ProjectManager = request.ProjectManager,
-            Description = request.Description
+            Description = request.Description,
+            FoundationSystem = request.FoundationSystem ?? string.Empty
         };
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -56,7 +57,7 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         if (project is null) return false;
         project.Name = request.Name;
         project.SiteAddress = request.SiteAddress;
-        project.ExpectedCompletionDate = request.ExpectedCompletionDate;
+        project.ExpectedCompletionDate = DateTimeUtc.From(request.ExpectedCompletionDate);
         project.EstimatedBudget = request.EstimatedBudget;
         project.Status = request.Status;
         project.ProgressPercent = request.ProgressPercent;
@@ -71,7 +72,7 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
     {
         var project = await dbContext.Projects.SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);
         if (project is null) return false;
-        project.FoundationSystem = request.FoundationSystem;
+        project.FoundationSystem = request.FoundationSystem ?? string.Empty;
         project.ConstructionPlanJson = request.ConstructionPlanJson;
         project.ProgressPercent = request.ProgressPercent;
         project.ActualCost = request.ActualCost;
@@ -82,10 +83,8 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
 
     public async Task<ProjectListItem?> GetConstructionPlanAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Projects
-            .AsNoTracking()
-            .Where(project => project.Id == id && !project.IsArchived)
-            .Select(project => ToListItem(project))
+        return await QueryActiveListItems()
+            .Where(project => project.Id == id)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -98,6 +97,22 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    private IQueryable<ProjectListItem> QueryActiveListItems() =>
+        dbContext.Projects.AsNoTracking()
+            .Where(project => !project.IsArchived)
+            .Select(project => new ProjectListItem(
+            project.Id,
+            project.ProjectCode,
+            project.Name,
+            project.Client != null ? project.Client.Name : string.Empty,
+            project.SiteAddress,
+            project.EstimatedBudget,
+            project.ActualCost,
+            project.ProgressPercent,
+            project.Status,
+            project.FoundationSystem,
+            project.ConstructionPlanJson));
 
     private static ProjectListItem ToListItem(Project project) => new(project.Id, project.ProjectCode, project.Name, project.Client?.Name ?? string.Empty, project.SiteAddress, project.EstimatedBudget, project.ActualCost, project.ProgressPercent, project.Status, project.FoundationSystem, project.ConstructionPlanJson);
 }

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { apiUrl } from './api-url';
 
 export interface ApiLabourRecord {
   id: string;
@@ -16,7 +17,7 @@ export interface ApiLabourRecord {
 @Injectable({ providedIn: 'root' })
 export class LabourService {
   private readonly http = inject(HttpClient);
-  private readonly endpoint = '/api/labour';
+  private readonly endpoint = apiUrl('/api/labour');
 
   getAttendance(): Observable<ApiLabourRecord[]> {
     return this.http.get<ApiLabourRecord[]>(this.endpoint).pipe(catchError(() => of([])));

@@ -580,9 +580,10 @@ export class App implements OnInit {
             });
             this.moduleNotice.set('Construction plan saved.');
           },
-          error: (err: any) => {
+          error: (err: unknown) => {
+            const message = err instanceof Error ? err.message : 'Could not save construction plan to the database.';
             console.error('Failed to persist construction plan', err);
-            this.moduleNotice.set('Could not save construction plan to server. Changes are local only.');
+            this.moduleNotice.set(message);
           },
         });
     }
@@ -1546,6 +1547,16 @@ export class App implements OnInit {
       constructionPhases: this.parseConstructionPlan(project),
     };
     this.projects.update((projects) => [...projects, projectWithConstructionPlan]);
+    if (project.id) {
+      this.projectsService
+        .updateConstructionPlan(project.id, {
+          foundationSystem: projectWithConstructionPlan.foundationSystem || 'Standard/RR foundation',
+          constructionPlanJson: JSON.stringify(projectWithConstructionPlan.constructionPhases ?? []),
+          progressPercent: Number(project.progressPercent || 0),
+          actualCost: Number(project.actualCost || 0),
+        })
+        .subscribe({ error: () => undefined });
+    }
     this.isSubmitting.set(false);
     this.showProjectForm.set(false);
     Object.assign(this.projectForm, {

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { apiUrl } from './api-url';
 
 export interface ApiExpense {
   id: string;
@@ -30,8 +31,8 @@ export interface ApiPayment {
 @Injectable({ providedIn: 'root' })
 export class FinanceService {
   private readonly http = inject(HttpClient);
-  private readonly expensesEndpoint = '/api/expenses';
-  private readonly paymentsEndpoint = '/api/payments';
+  private readonly expensesEndpoint = apiUrl('/api/expenses');
+  private readonly paymentsEndpoint = apiUrl('/api/payments');
 
   getExpenses(): Observable<ApiExpense[]> {
     return this.http.get<ApiExpense[]>(this.expensesEndpoint).pipe(catchError(() => of([])));

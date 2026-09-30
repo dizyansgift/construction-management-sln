@@ -24,7 +24,7 @@ public sealed class FinanceService(ConstructionDbContext dbContext) : IFinanceSe
             PhaseId = request.PhaseId,
             Category = request.Category,
             Amount = request.Amount,
-            Date = request.Date,
+            Date = DateTimeUtc.From(request.Date),
             Vendor = request.Vendor,
             Description = request.Description,
             PaymentMethod = request.PaymentMethod,
@@ -56,7 +56,7 @@ public sealed class FinanceService(ConstructionDbContext dbContext) : IFinanceSe
             InvoiceNumber = request.InvoiceNumber,
             Amount = request.Amount,
             Date = DateTime.UtcNow,
-            DueDate = request.DueDate,
+            DueDate = DateTimeUtc.From(request.DueDate),
             Status = request.Status,
         };
         dbContext.Payments.Add(payment);
