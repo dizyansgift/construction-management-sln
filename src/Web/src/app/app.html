@@ -1,3 +1,34 @@
+@if (!auth.isLoggedIn()) {
+  <section class="auth-page" [class.dark-theme]="darkMode()">
+    <div class="auth-panel">
+      <div class="auth-brand"><span class="brand-mark">S</span><span>SLATE</span></div>
+      <p class="eyebrow">CONSTRUCTION WORKSPACE</p>
+      <h1>{{ authMode() === 'signup' ? 'Create your account' : 'Sign in' }}</h1>
+      <p class="auth-copy">{{ authMode() === 'signup' ? 'Set up access for your construction management workspace.' : 'Sign in to manage projects, materials, labour, and costs.' }}</p>
+      <form (ngSubmit)="submitAuth()">
+        @if (authMode() === 'signup') {
+          <label>Full name<input name="displayName" [(ngModel)]="authForm.displayName" autocomplete="name" placeholder="Jordan Miles"></label>
+        }
+        <label>Email<input name="email" type="email" [(ngModel)]="authForm.email" autocomplete="email" placeholder="you@company.com"></label>
+        <label>Password<input name="password" type="password" [(ngModel)]="authForm.password" [attr.autocomplete]="authMode() === 'signup' ? 'new-password' : 'current-password'" placeholder="At least 8 characters"></label>
+        @if (authMode() === 'signup') {
+          <label>Confirm password<input name="confirmPassword" type="password" [(ngModel)]="authForm.confirmPassword" autocomplete="new-password" placeholder="Repeat password"></label>
+        }
+        @if (authError()) {<p class="form-error">{{ authError() }}</p>}
+        <button class="primary auth-submit" type="submit" [disabled]="authBusy()">{{ authBusy() ? 'Please wait...' : authMode() === 'signup' ? 'Create account' : 'Sign in' }}</button>
+      </form>
+      <p class="auth-switch">
+        @if (authMode() === 'login') {
+          No account yet?
+          <button type="button" class="link-button" (click)="setAuthMode('signup')">Sign up</button>
+        } @else {
+          Already have an account?
+          <button type="button" class="link-button" (click)="setAuthMode('login')">Sign in</button>
+        }
+      </p>
+    </div>
+  </section>
+} @else {
 <main class="app-shell" [class.dark-theme]="darkMode()">
   <aside class="sidebar">
     <div class="brand"><span class="brand-mark">S</span><span>SLATE</span></div>
@@ -7,7 +38,7 @@
         <button [class.active]="activeSection() === item" (click)="openSection(item)"><span>{{ item === 'Dashboard' ? '▦' : item === 'Projects' ? '◫' : item === 'Materials' ? '◈' : item === 'Labour' ? '♙' : item === 'Payments' ? '▣' : item === 'Reports' ? '▥' : '▤' }}</span><span>{{ item }}</span></button>
       }
     </nav>
-    <div class="profile"><span class="avatar">JM</span><span><b>Jordan Miles</b><small>Project director</small></span></div>
+    <div class="profile"><span class="avatar">{{ auth.initials() }}</span><span><b>{{ auth.displayName() }}</b><small>Workspace member</small></span><button type="button" class="link-button logout" (click)="logout()">Sign out</button></div>
   </aside>
   <section class="content">
     <header class="topbar"><span>Monday, September 12, 2026 · Week 37</span><div class="topbar-actions"><button class="theme-toggle" type="button" (click)="toggleTheme()" [attr.aria-label]="darkMode() ? 'Switch to light mode' : 'Switch to dark mode'"><span>{{ darkMode() ? '☀' : '◐' }}</span>{{ darkMode() ? 'Light mode' : 'Dark mode' }}</button><button class="primary" (click)="openProjectForm()">＋ New project</button></div></header>
@@ -261,3 +292,4 @@
     <div class="modal-backdrop" (click)="closeEmployeeHistory()"><section class="modal history-modal" (click)="$event.stopPropagation()"><div class="modal-header"><div><p class="eyebrow">EMPLOYEE HISTORY</p><h2>{{ selectedEmployee()?.name }}</h2></div><button class="close" (click)="closeEmployeeHistory()">×</button></div><p class="modal-copy">{{ selectedEmployee()?.role }} · {{ selectedEmployee()?.wage | currency:'INR':'symbol':'1.0-0' }}/day</p><h3 class="history-heading">Work history</h3><div class="history-list">@for (record of employeeHistory(selectedEmployee()!); track record.period + record.project) {<article class="history-item"><div><strong>{{ record.period }}</strong><small>{{ record.project }}</small></div><p>{{ record.work }}</p><span [class.low-stock]="record.status === 'Pending'">{{ record.status }}</span></article>}</div><h3 class="history-heading">Attendance history</h3><div class="attendance-list"><div class="attendance-head"><span>DATE</span><span>STATUS</span><span>HOURS</span><span>PROJECT</span></div>@for (record of employeeAttendanceHistory(selectedEmployee()!); track record.date) {<div class="attendance-row"><span>{{ record.date }}</span><strong [class.low-stock]="record.status !== 'Present'">{{ record.status }}</strong><span>{{ record.hours }}</span><span>{{ record.project }}</span></div>}</div><div class="form-actions"><button type="button" class="primary" (click)="closeEmployeeHistory()">Close</button></div></section></div>
   }
 </main>
+}

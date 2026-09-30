@@ -55,6 +55,10 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.User.RequireUniqueEmail = true;
         options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
     })
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<ConstructionDbContext>();

@@ -5,6 +5,7 @@ import { Project, ProjectsService } from './projects.service';
 import { FinanceService } from './finance.service';
 import { InventoryService } from './inventory.service';
 import { LabourService } from './labour.service';
+import { AuthService } from './auth.service';
 
 export type ActivityStatus = 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Delayed';
 
@@ -190,6 +191,16 @@ export class App implements OnInit {
   private readonly financeService = inject(FinanceService);
   private readonly inventoryService = inject(InventoryService);
   private readonly labourService = inject(LabourService);
+  protected readonly auth = inject(AuthService);
+  protected readonly authMode = signal<'login' | 'signup'>('login');
+  protected readonly authError = signal('');
+  protected readonly authBusy = signal(false);
+  protected readonly authForm = {
+    displayName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  };
   protected readonly projects = signal<Project[]>([]);
   protected readonly activeSection = signal('Dashboard');
   protected readonly dashboardPeriod = signal('This week');
@@ -390,7 +401,66 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.darkMode.set(localStorage.getItem('slate.theme') === 'dark');
+    if (this.auth.isLoggedIn()) this.loadWorkspace();
+  }
 
+  protected setAuthMode(mode: 'login' | 'signup'): void {
+    this.authMode.set(mode);
+    this.authError.set('');
+  }
+
+  protected submitAuth(): void {
+    if (this.authBusy()) return;
+    const email = this.authForm.email.trim();
+    const password = this.authForm.password;
+    const displayName = this.authForm.displayName.trim();
+    if (!email || !password) {
+      this.authError.set('Email and password are required.');
+      return;
+    }
+    if (this.authMode() === 'signup') {
+      if (!displayName) {
+        this.authError.set('Name is required to create an account.');
+        return;
+      }
+      if (password.length < 8) {
+        this.authError.set('Password must be at least 8 characters.');
+        return;
+      }
+      if (password !== this.authForm.confirmPassword) {
+        this.authError.set('Passwords do not match.');
+        return;
+      }
+    }
+
+    this.authBusy.set(true);
+    this.authError.set('');
+    const request$ =
+      this.authMode() === 'signup'
+        ? this.auth.register(email, password, displayName)
+        : this.auth.login(email, password);
+    request$.subscribe({
+      next: () => {
+        this.authBusy.set(false);
+        Object.assign(this.authForm, { displayName: '', email: '', password: '', confirmPassword: '' });
+        this.loadWorkspace();
+      },
+      error: (err: unknown) => {
+        this.authBusy.set(false);
+        this.authError.set(err instanceof Error ? err.message : 'Could not complete sign in.');
+      },
+    });
+  }
+
+  protected logout(): void {
+    this.auth.logout();
+    this.projects.set([]);
+    this.selectedProject.set(null);
+    this.authMode.set('login');
+    this.authError.set('');
+  }
+
+  private loadWorkspace(): void {
     this.projectsService.getProjects().subscribe((apiProjects) => {
       const projectsWithPlans = apiProjects.map((project) => ({
         ...project,
