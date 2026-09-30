@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 import { apiUrl } from './api-url';
+import { apiErrorMessage } from './http-error';
 
 export interface ApiLabourRecord {
   id: string;
@@ -32,6 +33,8 @@ export class LabourService {
     overtimeHours: number;
     status: string;
   }): Observable<ApiLabourRecord> {
-    return this.http.post<ApiLabourRecord>(this.endpoint, request);
+    return this.http.post<ApiLabourRecord>(this.endpoint, request).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save attendance to the database.')))),
+    );
   }
 }

@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -25,6 +26,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddOpenApi();
 var databaseProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
@@ -102,9 +104,22 @@ app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    endpoints = new[] { "/api/projects", "/api/projects/{id}/construction-plan", "/api/auth" }
+    version = "2026-10-01-plan",
+    commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT"),
+    endpoints = new[]
+    {
+        "/api/projects",
+        "/api/projects/{id}",
+        "/api/projects/{id}/construction-plan",
+        "/api/materials",
+        "/api/boq-items",
+        "/api/labour",
+        "/api/expenses",
+        "/api/payments",
+        "/api/auth"
+    }
 }));
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan" }));
 
 app.MapControllers();
 

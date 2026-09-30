@@ -21,5 +21,9 @@ public sealed class ExpensesController(IFinanceService financeService) : Control
         {
             return BadRequest(new { message = exception.Message });
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not save expense.", detail = ex.Message });
+        }
     }
 }

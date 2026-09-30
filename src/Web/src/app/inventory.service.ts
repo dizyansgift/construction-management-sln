@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 import { apiUrl } from './api-url';
+import { apiErrorMessage } from './http-error';
 
 export interface ApiMaterial {
   id: string;
@@ -46,7 +47,9 @@ export class InventoryService {
     unitPrice: number;
     supplierName: string;
   }): Observable<ApiMaterial> {
-    return this.http.post<ApiMaterial>(this.materialsEndpoint, request);
+    return this.http.post<ApiMaterial>(this.materialsEndpoint, request).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save material to the database.')))),
+    );
   }
 
   getBoqItems(): Observable<ApiBoqItem[]> {
@@ -61,6 +64,8 @@ export class InventoryService {
     quantity: number;
     estimatedRate: number;
   }): Observable<ApiBoqItem> {
-    return this.http.post<ApiBoqItem>(this.boqEndpoint, request);
+    return this.http.post<ApiBoqItem>(this.boqEndpoint, request).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save BOQ item to the database.')))),
+    );
   }
 }

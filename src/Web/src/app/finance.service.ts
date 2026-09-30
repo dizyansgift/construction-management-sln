@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 import { apiUrl } from './api-url';
+import { apiErrorMessage } from './http-error';
 
 export interface ApiExpense {
   id: string;
@@ -48,7 +49,9 @@ export class FinanceService {
     description: string;
     paymentMethod: string;
   }): Observable<ApiExpense> {
-    return this.http.post<ApiExpense>(this.expensesEndpoint, request);
+    return this.http.post<ApiExpense>(this.expensesEndpoint, request).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save expense to the database.')))),
+    );
   }
 
   getPayments(): Observable<ApiPayment[]> {
@@ -65,6 +68,8 @@ export class FinanceService {
     dueDate: string | null;
     status: string;
   }): Observable<ApiPayment> {
-    return this.http.post<ApiPayment>(this.paymentsEndpoint, request);
+    return this.http.post<ApiPayment>(this.paymentsEndpoint, request).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save payment to the database.')))),
+    );
   }
 }

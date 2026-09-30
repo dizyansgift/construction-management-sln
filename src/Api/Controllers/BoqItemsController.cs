@@ -21,5 +21,9 @@ public sealed class BoqItemsController(IInventoryService inventoryService) : Con
         {
             return BadRequest(new { message = exception.Message });
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not save BOQ item.", detail = ex.Message });
+        }
     }
 }

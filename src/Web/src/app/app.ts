@@ -313,58 +313,65 @@ export class App implements OnInit {
   };
 
   protected createAttendance(): void {
-    // const form = this.attendanceForm;
-    // if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
-    //   this.attendanceFormError.set('Project, worker name, role and date are required.');
-    //   return;
-    // }
+    const form = this.attendanceForm;
+    if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
+      this.attendanceFormError.set('Project, worker name, role and date are required.');
+      return;
+    }
 
-    // const record = {
-    //   projectId: this.projects().find((p) => p.name === form.project)?.id,
-    //   workerName: form.name.trim(),
-    //   role: form.role.trim(),
-    //   date: new Date(`${form.date}T00:00:00`).toISOString(),
-    //   dailyWage: Number(form.wage),
-    //   overtimeHours: Number(form.overtimeHours),
-    //   status: form.status,
-    // };
+    const projectId = this.projects().find((p) => p.name === form.project)?.id;
+    if (!projectId) {
+      this.attendanceFormError.set('Select a saved project before recording attendance.');
+      return;
+    }
 
-    // // optimistic update
-    // const display = {
-    //   id: String(Date.now()),
-    //   project: form.project,
-    //   name: form.name.trim(),
-    //   role: form.role.trim(),
-    //   attendance: form.status,
-    //   wage: Number(form.wage),
-    //   overtimeHours: Number(form.overtimeHours),
-    //   date: form.date,
-    // };
-    // this.labourRecords.update((list) => [display, ...list]);
+    const display = {
+      id: String(Date.now()),
+      project: form.project,
+      name: form.name.trim(),
+      role: form.role.trim(),
+      attendance: form.status,
+      wage: Number(form.wage),
+      overtimeHours: Number(form.overtimeHours),
+      date: form.date,
+    };
+    this.labourRecords.update((list) => [display, ...list]);
 
-    // if (record.projectId) {
-    //   this.labourService.recordAttendance(record).subscribe({
-    //     next: (saved) => {
-    //       // replace optimistic item id with server id when returned
-    //       this.labourRecords.update((list) => list.map((r) => (r.id === display.id ? { ...r, id: saved.id, date: (saved.date || saved.createdAt || form.date).slice(0, 10) } : r)));
-    //       this.moduleNotice.set('Attendance recorded.');
-    //     },
-    //     error: () => {
-    //       this.moduleNotice.set('Could not save attendance to server.');
-    //     },
-    //   });
-    // }
+    this.labourService
+      .recordAttendance({
+        projectId,
+        workerName: display.name,
+        role: display.role,
+        date: new Date(`${form.date}T00:00:00`).toISOString(),
+        dailyWage: Number(form.wage),
+        overtimeHours: Number(form.overtimeHours),
+        status: form.status,
+      })
+      .subscribe({
+        next: (saved) => {
+          this.labourRecords.update((list) =>
+            list.map((record) =>
+              record.id === display.id ? { ...record, id: saved.id, date: (saved.date || form.date).slice(0, 10) } : record,
+            ),
+          );
+          this.moduleNotice.set('Attendance recorded.');
+        },
+        error: (err: unknown) => {
+          this.labourRecords.update((list) => list.filter((record) => record.id !== display.id));
+          this.moduleNotice.set(err instanceof Error ? err.message : 'Could not save attendance to the database.');
+        },
+      });
 
-    // Object.assign(form, {
-    //   project: '',
-    //   name: '',
-    //   role: '',
-    //   date: new Date().toISOString().slice(0, 10),
-    //   wage: 0,
-    //   overtimeHours: 0,
-    //   status: 'Present',
-    // });
-    // this.showAttendanceForm.set(false);
+    Object.assign(form, {
+      project: '',
+      name: '',
+      role: '',
+      date: new Date().toISOString().slice(0, 10),
+      wage: 0,
+      overtimeHours: 0,
+      status: 'Present',
+    });
+    this.showAttendanceForm.set(false);
   }
   protected readonly totalBudget = (total: number, project: { estimatedBudget: number }) =>
     total + project.estimatedBudget;
@@ -1187,7 +1194,11 @@ export class App implements OnInit {
           description: expense.description,
           paymentMethod: form.paymentMethod,
         })
-        .subscribe();
+        .subscribe({
+          error: (err: unknown) => {
+            this.moduleNotice.set(err instanceof Error ? err.message : 'Could not save expense to the database.');
+          },
+        });
     }
 
     Object.assign(form, {
@@ -1279,7 +1290,11 @@ export class App implements OnInit {
           unitPrice: received.price,
           supplierName: received.supplier,
         })
-        .subscribe();
+        .subscribe({
+          error: (err: unknown) => {
+            this.moduleNotice.set(err instanceof Error ? err.message : 'Could not save material to the database.');
+          },
+        });
     }
 
     Object.assign(form, {
@@ -1405,7 +1420,11 @@ export class App implements OnInit {
           dueDate: new Date(`${form.due}T00:00:00`).toISOString(),
           status: payment.status,
         })
-        .subscribe();
+        .subscribe({
+          error: (err: unknown) => {
+            this.moduleNotice.set(err instanceof Error ? err.message : 'Could not save payment to the database.');
+          },
+        });
     }
 
     Object.assign(form, {
@@ -1467,7 +1486,11 @@ export class App implements OnInit {
           quantity: newItem.quantity,
           estimatedRate: newItem.rate,
         })
-        .subscribe();
+        .subscribe({
+          error: (err: unknown) => {
+            this.moduleNotice.set(err instanceof Error ? err.message : 'Could not save BOQ item to the database.');
+          },
+        });
     }
 
     Object.assign(this.boqForm, {

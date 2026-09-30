@@ -21,5 +21,9 @@ public sealed class MaterialsController(IInventoryService inventoryService) : Co
         {
             return BadRequest(new { message = exception.Message });
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not save material.", detail = ex.Message });
+        }
     }
 }

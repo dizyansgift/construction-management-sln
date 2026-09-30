@@ -25,5 +25,9 @@ public sealed class PaymentsController(IFinanceService financeService) : Control
         {
             return Conflict(new { message = exception.Message });
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not save payment.", detail = ex.Message });
+        }
     }
 }
