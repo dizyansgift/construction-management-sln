@@ -15,15 +15,15 @@
           <label>Confirm password<input name="confirmPassword" type="password" [(ngModel)]="authForm.confirmPassword" autocomplete="new-password" placeholder="Repeat password"></label>
         }
         @if (authError()) {<p class="form-error">{{ authError() }}</p>}
-        <button class="primary auth-submit" type="submit" [disabled]="authBusy()">{{ authBusy() ? 'Please wait...' : authMode() === 'signup' ? 'Create account' : 'Sign in' }}</button>
+        <button class="auth-submit" type="submit" [disabled]="authBusy()">{{ authBusy() ? 'Please wait...' : authMode() === 'signup' ? 'Create account' : 'Sign in' }}</button>
       </form>
       <p class="auth-switch">
         @if (authMode() === 'login') {
           No account yet?
-          <button type="button" class="link-button" (click)="setAuthMode('signup')">Sign up</button>
+          <button type="button" class="auth-alt" (click)="setAuthMode('signup')">Sign up</button>
         } @else {
           Already have an account?
-          <button type="button" class="link-button" (click)="setAuthMode('login')">Sign in</button>
+          <button type="button" class="auth-alt" (click)="setAuthMode('login')">Sign in</button>
         }
       </p>
     </div>

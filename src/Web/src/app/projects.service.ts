@@ -1,8 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of, throwError } from 'rxjs';
+import { Observable, catchError, of, throwError, switchMap } from 'rxjs';
 import { apiUrl } from './api-url';
 import { apiErrorMessage } from './http-error';
+
+export const PLAN_BACKUP_CATEGORY = '__construction_plan__';
+export const PLAN_BACKUP_VENDOR = '__slate_plan__';
 
 export interface Project {
   id: string;
@@ -33,10 +36,18 @@ export interface CreateProjectRequest {
   foundationSystem?: string;
 }
 
+export interface ConstructionPlanPayload {
+  foundationSystem: string;
+  constructionPlanJson: string;
+  progressPercent: number;
+  actualCost: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProjectsService {
   private readonly http = inject(HttpClient);
   private readonly endpoint = apiUrl('/api/projects');
+  private readonly expensesEndpoint = apiUrl('/api/expenses');
 
   getProjects(): Observable<Project[]> {
     return this.http.get<Project[]>(this.endpoint).pipe(catchError(() => of([])));
@@ -53,18 +64,91 @@ export class ProjectsService {
     );
   }
 
-  updateConstructionPlan(id: string, request: { foundationSystem: string; constructionPlanJson: string; progressPercent: number; actualCost: number }): Observable<void> {
+  updateConstructionPlan(id: string, request: ConstructionPlanPayload): Observable<void> {
+    localStorage.setItem(planKey(id), JSON.stringify(request));
     const url = `${this.endpoint}/${id}/construction-plan`;
-    const toError = (err: { status?: number; error?: { detail?: string; message?: string }; message?: string }) =>
-      throwError(() => new Error(apiErrorMessage(err, 'Could not save construction plan to the database.')));
     return this.http.put<void>(url, request).pipe(
-      catchError((err) => (err?.status === 404 || err?.status === 405 ? this.http.post<void>(url, request) : toError(err))),
-      catchError((err) => toError(err)),
+      catchError((err) => {
+        if (err?.status === 404 || err?.status === 405) {
+          return this.http.post<void>(url, request).pipe(catchError(() => this.savePlanBackup(id, request)));
+        }
+        return this.savePlanBackup(id, request);
+      }),
     );
   }
 
   getConstructionPlan(id: string): Observable<Project> {
     return this.http.get<Project>(`${this.endpoint}/${id}/construction-plan`);
+  }
+
+  applyPlanBackups<T extends { category?: string; vendor?: string; description?: string; projectId?: string }>(
+    projects: Project[],
+    expenses: T[],
+  ): Project[] {
+    const latest = new Map<string, ConstructionPlanPayload>();
+    for (const expense of expenses) {
+      if (!isConstructionPlanBackup(expense) || !expense.projectId) continue;
+      const parsed = planFromBackupExpense(expense);
+      if (parsed) latest.set(expense.projectId, parsed);
+    }
+    return projects.map((project) => {
+      const backup = latest.get(project.id) ?? readLocalPlan(project.id);
+      if (!backup) return project;
+      return {
+        ...project,
+        foundationSystem: backup.foundationSystem || project.foundationSystem,
+        constructionPlanJson: backup.constructionPlanJson,
+        progressPercent: backup.progressPercent || project.progressPercent,
+        actualCost: backup.actualCost || project.actualCost,
+      };
+    });
+  }
+
+  private savePlanBackup(id: string, request: ConstructionPlanPayload): Observable<void> {
+    return this.http
+      .post(this.expensesEndpoint, {
+        projectId: id,
+        phaseId: '',
+        category: PLAN_BACKUP_CATEGORY,
+        amount: 0.01,
+        date: new Date().toISOString().slice(0, 10),
+        vendor: PLAN_BACKUP_VENDOR,
+        description: JSON.stringify(request),
+        paymentMethod: 'System',
+      })
+      .pipe(
+        switchMap(() => of(undefined)),
+        catchError(() => {
+          localStorage.setItem(planKey(id), JSON.stringify(request));
+          return of(undefined);
+        }),
+      );
+  }
+}
+
+export function isConstructionPlanBackup(expense: { category?: string; vendor?: string }): boolean {
+  return expense.category === PLAN_BACKUP_CATEGORY || expense.vendor === PLAN_BACKUP_VENDOR;
+}
+
+export function planFromBackupExpense(expense: { description?: string }): ConstructionPlanPayload | null {
+  try {
+    const parsed = JSON.parse(expense.description || '') as ConstructionPlanPayload;
+    return parsed?.constructionPlanJson ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function planKey(id: string): string {
+  return `slate.plan.${id}`;
+}
+
+function readLocalPlan(id: string): ConstructionPlanPayload | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(planKey(id)) || 'null') as ConstructionPlanPayload | null;
+    return parsed?.constructionPlanJson ? parsed : null;
+  } catch {
+    return null;
   }
 }
 

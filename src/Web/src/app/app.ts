@@ -1,7 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Project, ProjectsService } from './projects.service';
+import { Project, ProjectsService, isConstructionPlanBackup } from './projects.service';
 import { FinanceService } from './finance.service';
 import { InventoryService } from './inventory.service';
 import { LabourService } from './labour.service';
@@ -462,7 +462,7 @@ export class App implements OnInit {
 
   private loadWorkspace(): void {
     this.projectsService.getProjects().subscribe((apiProjects) => {
-      const projectsWithPlans = apiProjects.map((project) => ({
+      const projectsWithPlans = this.projectsService.applyPlanBackups(apiProjects, []).map((project) => ({
         ...project,
         constructionPhases: this.parseConstructionPlan(project),
       }));
@@ -477,7 +477,21 @@ export class App implements OnInit {
       const projectNameById = new Map(projectsWithPlans.map((project) => [project.id, project.name]));
 
       this.financeService.getExpenses().subscribe((apiExpenses) => {
-        const mapped = apiExpenses.map((expense) => ({
+        const restored = this.projectsService.applyPlanBackups(this.projects(), apiExpenses).map((project) => ({
+          ...project,
+          constructionPhases: this.parseConstructionPlan(project),
+        }));
+        this.projects.set(restored);
+        const selectedId = this.selectedProject()?.id;
+        const refreshed = restored.find((project) => project.id === selectedId) ?? restored[0] ?? null;
+        if (refreshed) {
+          this.selectedProject.set(refreshed);
+          this.constructionPhases.set(refreshed.constructionPhases ?? createDefaultConstructionPhases());
+          this.selectedFoundationSystem.set(refreshed.foundationSystem || 'Standard/RR foundation');
+        }
+        const mapped = apiExpenses
+          .filter((expense) => !isConstructionPlanBackup(expense))
+          .map((expense) => ({
           id: expense.id,
           category: expense.category,
           description: expense.description,
@@ -641,22 +655,7 @@ export class App implements OnInit {
           actualCost: Number(actualCost || 0),
         })
         .subscribe({
-          next: () => {
-            // refresh projects from server to ensure persisted state is displayed
-            this.projectsService.getProjects().subscribe((apiProjects) => {
-              const projectsWithPlans = apiProjects.map((project) => ({
-                ...project,
-                constructionPhases: this.parseConstructionPlan(project),
-              }));
-              this.projects.set(projectsWithPlans);
-              const refreshed = projectsWithPlans.find((p) => p.id === activeProject.id) ?? null;
-              if (refreshed) {
-                this.selectedProject.set(refreshed);
-                this.constructionPhases.set(refreshed.constructionPhases ?? createDefaultConstructionPhases());
-              }
-            });
-            this.moduleNotice.set('Construction plan saved.');
-          },
+          next: () => this.moduleNotice.set('Construction plan saved.'),
           error: (err: unknown) => {
             const message = err instanceof Error ? err.message : 'Could not save construction plan to the database.';
             console.error('Failed to persist construction plan', err);
