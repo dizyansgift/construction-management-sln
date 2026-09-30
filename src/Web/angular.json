@@ -28,6 +28,12 @@
                 "glob": "**/*",
                 "input": "public"
               }
+              ,
+              {
+                "glob": "env.js",
+                "input": "src/assets",
+                "output": "assets"
+              }
             ],
             "styles": [
               "src/styles.scss"
