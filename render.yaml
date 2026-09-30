@@ -12,7 +12,7 @@ services:
     dockerfilePath: ./Dockerfile.vercel
     dockerContext: .
     plan: free
-    healthCheckPath: /api/projects
+    healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production

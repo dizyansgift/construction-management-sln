@@ -100,11 +100,12 @@ app.UseCors("Clients");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan2" }));
 app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    version = "2026-10-01-plan",
+    version = "2026-10-01-plan2",
     commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT"),
     endpoints = new[]
     {
@@ -119,15 +120,22 @@ app.MapGet("/", () => Results.Ok(new
         "/api/auth"
     }
 }));
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan" }));
 
 app.MapControllers();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ConstructionDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
-    await EnsureConstructionPlanSchemaAsync(dbContext, databaseProvider);
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ConstructionDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+        await EnsureConstructionPlanSchemaAsync(dbContext, databaseProvider);
+        Console.WriteLine("[startup] database schema ready.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[startup] database setup failed: {ex.Message}");
+    }
 }
 
 app.Run();
@@ -136,8 +144,24 @@ static async Task EnsureConstructionPlanSchemaAsync(ConstructionDbContext dbCont
 {
     if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
     {
-        await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""");
-        await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""");
+        string[] statements =
+        [
+            """ALTER TABLE IF EXISTS "Projects" ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""",
+            """ALTER TABLE IF EXISTS "Projects" ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""",
+            """ALTER TABLE IF EXISTS projects ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""",
+            """ALTER TABLE IF EXISTS projects ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""",
+        ];
+        foreach (var sql in statements)
+        {
+            try
+            {
+                await dbContext.Database.ExecuteSqlRawAsync(sql);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[startup] schema statement skipped: {ex.Message}");
+            }
+        }
         return;
     }
 

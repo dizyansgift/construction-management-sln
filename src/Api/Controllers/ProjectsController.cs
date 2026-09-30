@@ -8,7 +8,17 @@ namespace ConstructionManagement.Api.Controllers;
 public sealed class ProjectsController(IProjectService projectService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ProjectListItem>>> Get(CancellationToken cancellationToken) => Ok(await projectService.GetAsync(cancellationToken));
+    public async Task<ActionResult<IReadOnlyList<ProjectListItem>>> Get(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await projectService.GetAsync(cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Could not load projects.", detail = ex.Message });
+        }
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProjectListItem>> GetById(Guid id, CancellationToken cancellationToken)
