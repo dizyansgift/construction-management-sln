@@ -80,6 +80,15 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
         return true;
     }
 
+    public async Task<ProjectListItem?> GetConstructionPlanAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Projects
+            .AsNoTracking()
+            .Where(project => project.Id == id && !project.IsArchived)
+            .Select(project => ToListItem(project))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> ArchiveAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var project = await dbContext.Projects.SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);

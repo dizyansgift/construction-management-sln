@@ -86,6 +86,13 @@ public sealed class ProjectsController(IProjectService projectService) : Control
         return updated ? NoContent() : NotFound();
     }
 
+    [HttpGet("{id:guid}/construction-plan")]
+    public async Task<ActionResult<ProjectListItem>> GetConstructionPlan(Guid id, CancellationToken cancellationToken)
+    {
+        var project = await projectService.GetConstructionPlanAsync(id, cancellationToken);
+        return project is null ? NotFound() : Ok(project);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken) => await projectService.ArchiveAsync(id, cancellationToken) ? NoContent() : NotFound();
 }

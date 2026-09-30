@@ -60,4 +60,8 @@ export class ProjectsService {
   updateConstructionPlan(id: string, request: { foundationSystem: string; constructionPlanJson: string; progressPercent: number; actualCost: number }): Observable<void> {
     return this.http.put<void>(`${this.endpoint}/${id}/construction-plan`, request);
   }
+
+  getConstructionPlan(id: string): Observable<Project> {
+    return this.http.get<Project>(`${this.endpoint}/${id}/construction-plan`);
+  }
 }
