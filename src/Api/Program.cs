@@ -61,6 +61,11 @@ builder.Services.AddDbContext<ConstructionDbContext>(options =>
     }
     else
     {
+        if (builder.Environment.IsProduction())
+        {
+            throw new InvalidOperationException(
+                "Production cannot use SQLite because the container disk is wiped on every deploy. Set Database__Provider=Postgres and ConnectionStrings__ConstructionDatabase or DATABASE_URL.");
+        }
         var sqlite = string.IsNullOrWhiteSpace(configured) || PostgresConnection.LooksLikePostgres(configured)
             ? "Data Source=construction.db"
             : configured;
@@ -100,6 +105,8 @@ builder.Services.AddScoped<ILabourService, LabourService>();
 builder.Services.AddCors(options => options.AddPolicy("Clients", policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+var databaseEngine = "unknown";
+
 var app = builder.Build();
 
 // Log chosen database provider and whether a connection string is present (helpful for deployments)
@@ -122,12 +129,13 @@ app.UseCors("Clients");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-plan3" }));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-ui2", database = databaseEngine }));
 app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    version = "2026-10-01-plan3",
+    version = "2026-10-01-ui2",
+    database = databaseEngine,
     commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT"),
     endpoints = new[]
     {
@@ -150,6 +158,11 @@ await using (var scope = app.Services.CreateAsyncScope())
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ConstructionDbContext>();
+        databaseEngine = dbContext.Database.IsNpgsql()
+            ? "postgres"
+            : dbContext.Database.IsSqlite()
+                ? "sqlite"
+                : dbContext.Database.ProviderName ?? "unknown";
         await dbContext.Database.EnsureCreatedAsync();
         await EnsureConstructionPlanSchemaAsync(dbContext, databaseProvider);
         Console.WriteLine("[startup] database schema ready.");

@@ -205,6 +205,8 @@ export class App implements OnInit {
   protected readonly activeSection = signal('Dashboard');
   protected readonly dashboardPeriod = signal('This week');
   protected readonly selectedProjectFilter = signal('All projects');
+  protected readonly selectedMaterialCategory = signal('All categories');
+  protected readonly selectedPaymentStatus = signal('All statuses');
   protected readonly showProjectForm = signal(false);
   protected readonly formError = signal('');
   protected readonly isSubmitting = signal(false);
@@ -471,7 +473,7 @@ export class App implements OnInit {
       this.selectedProject.set(firstProject);
       this.constructionPhases.set(firstProject?.constructionPhases ?? createDefaultConstructionPhases());
       this.selectedFoundationSystem.set(firstProject?.foundationSystem || 'Standard/RR foundation');
-      this.selectedProjectFilter.set(firstProject?.name ?? 'All projects');
+      this.selectedProjectFilter.set('All projects');
       if (!projectsWithPlans.length) return;
 
       const projectNameById = new Map(projectsWithPlans.map((project) => [project.id, project.name]));
@@ -680,10 +682,6 @@ export class App implements OnInit {
     }));
     this.constructionPhases.set(nextPhases);
     this.persistConstructionPlan(nextPhases);
-  }
-
-  protected progressTrackStyle(value: number): string {
-    return `linear-gradient(to right, var(--green) ${value}%, #e5ede6 ${value}%)`;
   }
 
   protected updateActivityProgress(activityId: string, value: number): void {
@@ -1070,10 +1068,20 @@ export class App implements OnInit {
       : this.projects().filter((project) => project.name === this.selectedProjectFilter());
   }
 
+  protected materialCategoryOptions(): string[] {
+    return [...new Set(this.materials().map((material) => material.category).filter(Boolean))].sort();
+  }
+
+  protected paymentStatusOptions(): string[] {
+    return [...new Set(this.payments().map((payment) => payment.status).filter(Boolean))].sort();
+  }
+
   protected visibleMaterials() {
-    return this.selectedProjectFilter() === 'All projects'
-      ? this.materials()
-      : this.materials().filter((material) => material.project === this.selectedProjectFilter());
+    return this.materials().filter((material) => {
+      const projectMatch = this.selectedProjectFilter() === 'All projects' || material.project === this.selectedProjectFilter();
+      const categoryMatch = this.selectedMaterialCategory() === 'All categories' || material.category === this.selectedMaterialCategory();
+      return projectMatch && categoryMatch;
+    });
   }
 
   protected labourRoster(): { project: string; name: string; role: string; attendance: string; wage: number }[] {
@@ -1099,9 +1107,11 @@ export class App implements OnInit {
   }
 
   protected visiblePayments() {
-    return this.selectedProjectFilter() === 'All projects'
-      ? this.payments()
-      : this.payments().filter((payment) => payment.project === this.selectedProjectFilter());
+    return this.payments().filter((payment) => {
+      const projectMatch = this.selectedProjectFilter() === 'All projects' || payment.project === this.selectedProjectFilter();
+      const statusMatch = this.selectedPaymentStatus() === 'All statuses' || payment.status === this.selectedPaymentStatus();
+      return projectMatch && statusMatch;
+    });
   }
 
   protected openExpenseForm(): void {

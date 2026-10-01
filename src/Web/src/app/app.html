@@ -168,30 +168,32 @@
                     <article class="activity-card" [class.optional-row]="activity.isOptional || activity.isConditional">
                       <header class="activity-card-head">
                         <div class="activity-name-group">
+                          <span class="activity-field-label">Activity</span>
                           <strong>{{ activity.name }}</strong>
                           @if (activity.isConditional || activity.isOptional) {
                             <small>{{ activity.isConditional ? 'Conditional' : 'Optional' }}</small>
                           }
                         </div>
-                        <div class="activity-card-status">
-                          <label>
-                            <span>Status</span>
-                            <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
-                              <option>Not Started</option>
-                              <option>In Progress</option>
-                              <option>Completed</option>
-                              <option>On Hold</option>
-                              <option>Delayed</option>
-                            </select>
-                          </label>
-                          <label class="activity-progress-field">
-                            <span>Progress</span>
-                            <div class="progress-cell">
-                              <input type="range" min="0" max="100" step="5" class="progress-slider" [style.background]="progressTrackStyle(activity.progress)" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
-                              <span class="progress-value">{{ activity.progress }}%</span>
+                        <label class="activity-status-field">
+                          <span class="activity-field-label">Status</span>
+                          <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
+                            <option>Not Started</option>
+                            <option>In Progress</option>
+                            <option>Completed</option>
+                            <option>On Hold</option>
+                            <option>Delayed</option>
+                          </select>
+                        </label>
+                        <label class="activity-progress-field">
+                          <span class="activity-field-label">Progress</span>
+                          <div class="progress-cell">
+                            <div class="progress-track-wrap">
+                              <i class="progress-track-fill" [style.width.%]="activity.progress"></i>
+                              <input type="range" min="0" max="100" step="5" class="progress-slider" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
                             </div>
-                          </label>
-                        </div>
+                            <span class="progress-value">{{ activity.progress }}%</span>
+                          </div>
+                        </label>
                       </header>
                       <div class="activity-card-grid">
                         <div class="activity-edit-fields dual-field">
@@ -261,8 +263,8 @@
           </section>
         }
       } @else if (activeSection() === 'Materials') {
-        <section class="module-summary"><article><span>Total stock lines</span><strong>{{ materials().length }}</strong><small>Across active sites</small></article><article><span>Low stock alerts</span><strong class="warning">{{ lowStockCount() }}</strong><small>Needs purchase order</small></article><article><span>Inventory value</span><strong>{{ materials().reduce(stockValue, 0) | currency:'INR':'symbol':'1.0-0' }}</strong><small>Current stock valuation</small></article></section>
-        <section class="workspace-panel inventory-panel"><div class="panel-heading"><div><h2>Material inventory</h2><p>Track stock, suppliers, prices, and reorder levels.</p></div><button class="filter" (click)="action('Material filter')">All categories ⌄</button></div><div class="table-head material-grid"><span>MATERIAL</span><span>CATEGORY</span><span>STOCK</span><span>UNIT PRICE</span><span>SUPPLIER</span><span>STATE</span></div>@for (material of materials(); track material.name) {<div class="workspace-row material-grid"><strong>{{ material.name }}</strong><span>{{ material.category }}</span><span>{{ material.stock }} {{ material.unit }}</span><span>{{ material.price | currency:'INR':'symbol':'1.2-2' }}</span><span>{{ material.supplier }}</span><span [class.low-stock]="material.stock < material.minimum">{{ material.stock < material.minimum ? 'Reorder' : 'In stock' }}</span></div>}</section>
+        <section class="module-summary"><article><span>Total stock lines</span><strong>{{ visibleMaterials().length }}</strong><small>{{ selectedProjectFilter() === 'All projects' ? 'Across active sites' : selectedProjectFilter() }}</small></article><article><span>Low stock alerts</span><strong class="warning">{{ lowStockCount() }}</strong><small>Needs purchase order</small></article><article><span>Inventory value</span><strong>{{ visibleMaterials().reduce(stockValue, 0) | currency:'INR':'symbol':'1.0-0' }}</strong><small>Current stock valuation</small></article></section>
+        <section class="workspace-panel inventory-panel"><div class="panel-heading"><div><h2>Material inventory</h2><p>Filter stock by project and category. Each line is stored in Postgres against a project.</p><div class="panel-filters"><select class="filter" name="materialProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select><select class="filter" name="materialCategoryFilter" [ngModel]="selectedMaterialCategory()" (ngModelChange)="selectedMaterialCategory.set($event)"><option>All categories</option>@for (category of materialCategoryOptions(); track category) {<option [value]="category">{{ category }}</option>}</select></div></div><strong class="total-value">{{ visibleMaterials().reduce(stockValue, 0) | currency:'INR':'symbol':'1.0-0' }}</strong></div><div class="table-head material-grid"><span>MATERIAL</span><span>PROJECT</span><span>CATEGORY</span><span>STOCK</span><span>UNIT PRICE</span><span>SUPPLIER</span><span>STATE</span></div>@for (material of visibleMaterials(); track material.id || material.name + material.project) {<div class="workspace-row material-grid"><strong>{{ material.name }}</strong><span>{{ material.project }}</span><span>{{ material.category }}</span><span>{{ material.stock }} {{ material.unit }}</span><span>{{ material.price | currency:'INR':'symbol':'1.2-2' }}</span><span>{{ material.supplier }}</span><span [class.low-stock]="material.stock < material.minimum">{{ material.stock < material.minimum ? 'Reorder' : 'In stock' }}</span></div>}</section>
       } @else if (activeSection() === 'BOQ / Estimation') {
         <section class="workspace-panel"><div class="panel-heading"><div><h2>Bill of quantities</h2><p>Project-wise estimate: quantity × rate = estimated amount.</p></div><strong class="total-value">{{ visibleBoqItems().reduce(boqTotal, 0) | currency:'INR':'symbol':'1.0-0' }}</strong></div><div class="table-head boq-grid"><span>CATEGORY</span><span>DESCRIPTION</span><span>UNIT</span><span>QTY</span><span>RATE</span><span>AMOUNT</span></div>@for (item of visibleBoqItems(); track item.project + item.description) {<div class="workspace-row boq-grid"><span>{{ item.category }}</span><strong>{{ item.description }}</strong><span>{{ item.unit }}</span><span>{{ item.quantity }}</span><span>{{ item.rate | currency:'INR':'symbol':'1.0-0' }}</span><span>{{ item.amount | currency:'INR':'symbol':'1.0-0' }}</span></div>}</section>
       } @else if (activeSection() === 'Labour') {
@@ -270,7 +272,7 @@
       } @else if (activeSection() === 'Expenses') {
         <section class="workspace-panel"><div class="panel-heading"><div><h2>Project expenses</h2><p>Every expense is assigned to a project before it can be saved.</p><select class="filter" name="expenseProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select></div><strong class="total-value">{{ visibleExpenses().reduce(expenseTotal, 0) | currency:'INR':'symbol':'1.0-0' }}</strong></div><div class="table-head expense-grid"><span>DESCRIPTION</span><span>CATEGORY</span><span>PROJECT</span><span>PHASE</span><span>VENDOR</span><span>DATE</span><span>AMOUNT</span><span>BILL</span></div>@for (expense of visibleExpenses(); track expense.description + expense.date) {<div class="workspace-row expense-grid"><strong>{{ expense.description }}</strong><span>{{ expense.category }}</span><span>{{ expense.project }}</span><span>{{ phaseShortLabel(expense.phaseId) }}</span><span>{{ expense.vendor }}</span><span>{{ expense.date }}</span><strong>{{ expense.amount | currency:'INR':'symbol':'1.0-0' }}</strong><button class="link-button" (click)="generateExpenseBill(expense)">View PDF</button></div>}</section>
       } @else if (activeSection() === 'Payments') {
-        <section class="workspace-panel"><div class="panel-heading"><div><h2>Payments</h2><p>Every construction payment is assigned to a project.</p><select class="filter" name="paymentProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select></div><strong class="total-value">{{ visiblePayments().reduce(paymentTotal, 0) | currency:'INR':'symbol':'1.0-0' }}</strong></div><div class="table-head payment-grid"><span>PROJECT</span><span>PHASE</span><span>PARTY</span><span>TYPE</span><span>REFERENCE</span><span>STATUS</span><span>AMOUNT</span></div>@for (payment of visiblePayments(); track payment.invoice) {<div class="workspace-row payment-grid"><strong>{{ payment.project }}</strong><span>{{ phaseShortLabel(payment.phaseId) }}</span><span>{{ payment.party }}</span><span>{{ payment.type }}</span><span>{{ payment.invoice }}</span><span [class.low-stock]="payment.status === 'Pending'">{{ payment.status }}</span><strong>{{ payment.amount | currency:'INR':'symbol':'1.0-0' }}</strong></div>}</section>
+        <section class="workspace-panel"><div class="panel-heading"><div><h2>Payments</h2><p>Every payment is stored in Postgres against a project. Filter by project and status.</p><div class="panel-filters"><select class="filter" name="paymentProjectFilter" [ngModel]="selectedProjectFilter()" (ngModelChange)="selectedProjectFilter.set($event)"><option>All projects</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select><select class="filter" name="paymentStatusFilter" [ngModel]="selectedPaymentStatus()" (ngModelChange)="selectedPaymentStatus.set($event)"><option>All statuses</option>@for (status of paymentStatusOptions(); track status) {<option [value]="status">{{ status }}</option>}</select></div></div><strong class="total-value">{{ visiblePayments().reduce(paymentTotal, 0) | currency:'INR':'symbol':'1.0-0' }}</strong></div><div class="table-head payment-grid"><span>PROJECT</span><span>PHASE</span><span>PARTY</span><span>TYPE</span><span>REFERENCE</span><span>STATUS</span><span>AMOUNT</span></div>@for (payment of visiblePayments(); track payment.invoice) {<div class="workspace-row payment-grid"><strong>{{ payment.project }}</strong><span>{{ phaseShortLabel(payment.phaseId) }}</span><span>{{ payment.party }}</span><span>{{ payment.type }}</span><span>{{ payment.invoice }}</span><span [class.low-stock]="payment.status === 'Pending'">{{ payment.status }}</span><strong>{{ payment.amount | currency:'INR':'symbol':'1.0-0' }}</strong></div>}</section>
       } @else if (activeSection() === 'Reports') {
         <section class="report-grid">@for (report of ['Project summary', 'Budget vs actual', 'Material usage', 'Labour attendance', 'Payment report', 'Profit and loss']; track report) {<article class="report-card"><span>REPORT</span><h2>{{ report }}</h2><p>Generate a current report from your construction records.</p><button class="link-button" (click)="generateReport(report)">Generate report →</button></article>}</section>
       } @else {
