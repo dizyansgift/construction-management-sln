@@ -45,6 +45,7 @@ public sealed class Expense : Entity
     public Guid ProjectId { get; set; }
     public Project? Project { get; set; }
     public string? PhaseId { get; set; }
+    public string? ActivityId { get; set; }
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }

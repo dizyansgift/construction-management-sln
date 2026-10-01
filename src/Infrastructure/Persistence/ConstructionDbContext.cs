@@ -35,6 +35,7 @@ public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext
         modelBuilder.Entity<Material>().HasIndex(material => material.ProjectId);
         modelBuilder.Entity<Expense>().HasIndex(expense => new { expense.ProjectId, expense.Date });
         modelBuilder.Entity<Expense>().HasIndex(expense => expense.PhaseId);
+        modelBuilder.Entity<Expense>().HasIndex(expense => expense.ActivityId);
         modelBuilder.Entity<Payment>().HasIndex(payment => new { payment.ProjectId, payment.Status });
         modelBuilder.Entity<Payment>().HasIndex(payment => payment.PhaseId);
         modelBuilder.Entity<ProgressUpdate>().HasIndex(update => new { update.ProjectId, update.Date });

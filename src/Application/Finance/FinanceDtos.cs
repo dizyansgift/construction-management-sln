@@ -4,6 +4,7 @@ public sealed record ExpenseListItem(
     Guid Id,
     Guid ProjectId,
     string? PhaseId,
+    string? ActivityId,
     string Category,
     decimal Amount,
     DateTime Date,
@@ -14,6 +15,7 @@ public sealed record ExpenseListItem(
 public sealed record CreateExpenseRequest(
     Guid ProjectId,
     string? PhaseId,
+    string? ActivityId,
     string Category,
     decimal Amount,
     DateTime Date,

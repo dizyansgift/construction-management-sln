@@ -187,8 +187,10 @@ static async Task EnsureConstructionPlanSchemaAsync(ConstructionDbContext dbCont
         [
             """ALTER TABLE IF EXISTS "Projects" ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""",
             """ALTER TABLE IF EXISTS "Projects" ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""",
+            """ALTER TABLE IF EXISTS "Expenses" ADD COLUMN IF NOT EXISTS "ActivityId" text NULL;""",
             """ALTER TABLE IF EXISTS projects ADD COLUMN IF NOT EXISTS "FoundationSystem" text NOT NULL DEFAULT '';""",
             """ALTER TABLE IF EXISTS projects ADD COLUMN IF NOT EXISTS "ConstructionPlanJson" text NULL;""",
+            """ALTER TABLE IF EXISTS expenses ADD COLUMN IF NOT EXISTS "ActivityId" text NULL;""",
         ];
         foreach (var sql in statements)
         {
@@ -208,5 +210,6 @@ static async Task EnsureConstructionPlanSchemaAsync(ConstructionDbContext dbCont
     {
         try { await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN "FoundationSystem" TEXT NOT NULL DEFAULT '';"""); } catch { /* already exists */ }
         try { await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Projects" ADD COLUMN "ConstructionPlanJson" TEXT NULL;"""); } catch { /* already exists */ }
+        try { await dbContext.Database.ExecuteSqlRawAsync("""ALTER TABLE "Expenses" ADD COLUMN "ActivityId" TEXT NULL;"""); } catch { /* already exists */ }
     }
 }

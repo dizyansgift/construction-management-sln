@@ -8,6 +8,7 @@ export interface ApiExpense {
   id: string;
   projectId: string;
   phaseId: string | null;
+  activityId: string | null;
   category: string;
   amount: number;
   date: string;
@@ -42,6 +43,7 @@ export class FinanceService {
   createExpense(request: {
     projectId: string;
     phaseId: string;
+    activityId: string;
     category: string;
     amount: number;
     date: string;

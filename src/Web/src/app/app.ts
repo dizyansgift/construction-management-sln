@@ -106,7 +106,7 @@ export class App implements OnInit {
   // Template expects `labour` — alias the signal so templates compile
   //protected readonly labour = this.labourRecords;
   protected readonly expenses = signal<
-    { id?: string; category: string; description: string; project: string; vendor: string; amount: number; date: string; receiptName: string; phaseId: string }[]
+    { id?: string; category: string; description: string; project: string; vendor: string; amount: number; date: string; receiptName: string; phaseId: string; activityId: string }[]
   >([]);
   protected readonly payments = signal<
     { id?: string; project: string; type: string; party: string; invoice: string; amount: number; status: string; due: string; phaseId: string }[]
@@ -135,6 +135,7 @@ export class App implements OnInit {
   protected readonly expenseForm = {
     project: '',
     phaseId: '',
+    activityId: '',
     category: 'Materials',
     description: '',
     vendor: '',
@@ -347,6 +348,7 @@ export class App implements OnInit {
           date: new Date(expense.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
           receiptName: '',
           phaseId: expense.phaseId ?? '',
+          activityId: expense.activityId ?? '',
         }));
         this.expenses.set(mapped);
       });
@@ -764,7 +766,69 @@ export class App implements OnInit {
   protected openExpenseForPhase(phaseId: string): void {
     this.expenseForm.project = this.selectedProject()?.name ?? this.expenseForm.project;
     this.expenseForm.phaseId = phaseId;
+    this.expenseForm.activityId = '';
     this.openExpenseForm();
+  }
+
+  protected openExpenseForActivity(phaseId: string, activityId: string): void {
+    this.expenseForm.project = this.selectedProject()?.name ?? this.expenseForm.project;
+    this.expenseForm.phaseId = phaseId;
+    this.expenseForm.activityId = activityId;
+    this.openExpenseForm();
+  }
+
+  protected onExpenseProjectChange(name: string): void {
+    this.expenseForm.project = name;
+    const phases = this.phasesForExpenseProject();
+    if (!phases.some((phase) => phase.id === this.expenseForm.phaseId)) {
+      this.expenseForm.phaseId = '';
+      this.expenseForm.activityId = '';
+    }
+  }
+
+  protected onExpensePhaseChange(phaseId: string): void {
+    this.expenseForm.phaseId = phaseId;
+    if (!this.expenseActivityOptions().some((activity) => activity.id === this.expenseForm.activityId)) {
+      this.expenseForm.activityId = '';
+    }
+  }
+
+  protected phasesForExpenseProject(): ConstructionPhase[] {
+    const project = this.projects().find((item) => item.name === this.expenseForm.project);
+    if (project?.constructionPhases?.length) return project.constructionPhases;
+    if (project) return this.parseConstructionPlan(project);
+    return this.constructionPhases();
+  }
+
+  protected expenseActivityOptions(): ConstructionActivity[] {
+    const phase = this.phasesForExpenseProject().find((item) => item.id === this.expenseForm.phaseId);
+    return phase?.activities.filter((activity) => activity.isEnabled) ?? [];
+  }
+
+  protected activityExpenses(activityId: string) {
+    const projectName = this.selectedProject()?.name;
+    return this.expenses().filter(
+      (expense) =>
+        expense.activityId === activityId &&
+        (!projectName || expense.project === projectName),
+    );
+  }
+
+  protected activityExpenseTotal(activityId: string): number {
+    return this.activityExpenses(activityId).reduce((sum, expense) => sum + expense.amount, 0);
+  }
+
+  protected activityShortLabel(activityId: string, phaseId = '', projectName = ''): string {
+    if (!activityId) return 'Unassigned';
+    const project =
+      this.projects().find((item) => item.name === (projectName || this.selectedProject()?.name)) ??
+      this.selectedProject();
+    const phases = project?.constructionPhases ?? this.constructionPhases();
+    const activity = phases
+      .filter((phase) => !phaseId || phase.id === phaseId)
+      .flatMap((phase) => phase.activities)
+      .find((item) => item.id === activityId);
+    return activity?.name || activityId;
   }
 
   protected openPaymentForPhase(phaseId: string): void {
@@ -1200,6 +1264,7 @@ export class App implements OnInit {
       description: form.description.trim(),
       project: form.project,
       phaseId: form.phaseId,
+      activityId: form.activityId,
       vendor: form.vendor.trim(),
       amount: Number(form.amount),
       date: new Date(`${form.date}T00:00:00`).toLocaleDateString('en-IN', {
@@ -1225,6 +1290,7 @@ export class App implements OnInit {
         .createExpense({
           projectId: expenseProjectId,
           phaseId: expense.phaseId,
+          activityId: expense.activityId,
           category: expense.category,
           amount: expense.amount,
           date: form.date,
@@ -1242,6 +1308,7 @@ export class App implements OnInit {
     Object.assign(form, {
       project: '',
       phaseId: '',
+      activityId: '',
       category: 'Materials',
       description: '',
       vendor: '',

@@ -9,8 +9,8 @@ public sealed class FinanceService(ConstructionDbContext dbContext) : IFinanceSe
 {
     public async Task<IReadOnlyList<ExpenseListItem>> GetExpensesAsync(CancellationToken cancellationToken = default)
     {
-        return await dbContext.Expenses.AsNoTracking().OrderByDescending(expense => expense.Date)
-            .Select(expense => ToListItem(expense)).ToListAsync(cancellationToken);
+        return (await dbContext.Expenses.AsNoTracking().OrderByDescending(expense => expense.Date)
+            .ToListAsync(cancellationToken)).Select(ToListItem).ToList();
     }
 
     public async Task<ExpenseListItem> CreateExpenseAsync(CreateExpenseRequest request, CancellationToken cancellationToken = default)
@@ -22,6 +22,7 @@ public sealed class FinanceService(ConstructionDbContext dbContext) : IFinanceSe
         {
             ProjectId = request.ProjectId,
             PhaseId = request.PhaseId,
+            ActivityId = request.ActivityId,
             Category = request.Category,
             Amount = request.Amount,
             Date = DateTimeUtc.From(request.Date),
@@ -65,7 +66,7 @@ public sealed class FinanceService(ConstructionDbContext dbContext) : IFinanceSe
     }
 
     private static ExpenseListItem ToListItem(Expense expense) => new(
-        expense.Id, expense.ProjectId, expense.PhaseId, expense.Category, expense.Amount,
+        expense.Id, expense.ProjectId, expense.PhaseId, expense.ActivityId, expense.Category, expense.Amount,
         expense.Date, expense.Vendor, expense.Description, expense.PaymentMethod);
 
     private static PaymentListItem ToListItem(Payment payment) => new(
