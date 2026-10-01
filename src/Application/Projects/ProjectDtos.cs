@@ -30,7 +30,9 @@ public sealed record CreateProjectRequest(
 
 public sealed record UpdateProjectRequest(
     string Name,
+    string? ClientName,
     string SiteAddress,
+    DateTime? StartDate,
     DateTime ExpectedCompletionDate,
     decimal EstimatedBudget,
     ProjectStatus Status,

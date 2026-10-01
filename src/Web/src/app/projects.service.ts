@@ -18,6 +18,9 @@ export interface Project {
   progressPercent: number;
   status: string;
   expectedCompletionDate?: string;
+  startDate?: string;
+  projectManager?: string;
+  description?: string;
   foundationSystem?: string;
   constructionPlanJson?: string | null;
 }
@@ -34,6 +37,19 @@ export interface CreateProjectRequest {
   projectManager: string;
   description: string;
   foundationSystem?: string;
+}
+
+export interface UpdateProjectRequest {
+  name: string;
+  clientName?: string;
+  siteAddress: string;
+  startDate: string | null;
+  expectedCompletionDate: string | null;
+  estimatedBudget: number;
+  status: string;
+  progressPercent: number;
+  projectManager: string;
+  description: string;
 }
 
 export interface ConstructionPlanPayload {
@@ -61,6 +77,16 @@ export class ProjectsService {
     };
     return this.http.post<Project>(this.endpoint, payload).pipe(
       catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not save the project to the database.')))),
+    );
+  }
+
+  updateProject(id: string, request: UpdateProjectRequest): Observable<void> {
+    return this.http.put<void>(`${this.endpoint}/${id}`, {
+      ...request,
+      startDate: toIsoDate(request.startDate),
+      expectedCompletionDate: toIsoDate(request.expectedCompletionDate),
+    }).pipe(
+      catchError((err) => throwError(() => new Error(apiErrorMessage(err, 'Could not update the project.')))),
     );
   }
 

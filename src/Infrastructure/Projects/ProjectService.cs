@@ -58,16 +58,29 @@ public sealed class ProjectService(ConstructionDbContext dbContext) : IProjectSe
 
     public async Task<bool> UpdateAsync(Guid id, UpdateProjectRequest request, CancellationToken cancellationToken = default)
     {
-        var project = await dbContext.Projects.SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);
+        var project = await dbContext.Projects.Include(item => item.Client).SingleOrDefaultAsync(item => item.Id == id && !item.IsArchived, cancellationToken);
         if (project is null) return false;
         project.Name = request.Name;
         project.SiteAddress = request.SiteAddress;
+        if (request.StartDate.HasValue) project.StartDate = DateTimeUtc.From(request.StartDate.Value);
         project.ExpectedCompletionDate = DateTimeUtc.From(request.ExpectedCompletionDate);
+        if (project.ExpectedCompletionDate < project.StartDate) project.ExpectedCompletionDate = project.StartDate.AddMonths(6);
         project.EstimatedBudget = request.EstimatedBudget;
         project.Status = request.Status;
         project.ProgressPercent = request.ProgressPercent;
         project.ProjectManager = request.ProjectManager;
         project.Description = request.Description;
+        if (!string.IsNullOrWhiteSpace(request.ClientName))
+        {
+            var client = await dbContext.Clients.SingleOrDefaultAsync(item => item.Name == request.ClientName, cancellationToken);
+            if (client is null)
+            {
+                client = new Client { Name = request.ClientName };
+                dbContext.Clients.Add(client);
+            }
+            project.Client = client;
+            project.ClientId = client.Id;
+        }
         project.UpdatedUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;

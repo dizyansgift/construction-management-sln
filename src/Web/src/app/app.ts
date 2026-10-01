@@ -73,8 +73,9 @@ export class App implements OnInit {
   protected readonly showEmployeeHistory = signal(false);
   protected readonly selectedProject = signal<Project | null>(null);
   protected readonly selectedPhaseId = signal('A');
+  protected readonly editingProjectId = signal<string | null>(null);
   protected readonly projectPage = signal(0);
-  protected readonly projectsPerPage = 6;
+  protected readonly projectsPerPage = 10;
   protected readonly editingActivityId = signal<string | null>(null);
   protected newActivityName = '';
   protected readonly selectedFoundationSystem = signal('Standard/RR foundation');
@@ -1573,12 +1574,128 @@ export class App implements OnInit {
 
   protected openProjectForm(): void {
     this.formError.set('');
+    this.editingProjectId.set(null);
     this.projectForm.projectCode = this.nextProjectCode();
+    Object.assign(this.projectForm, {
+      name: '',
+      clientName: '',
+      clientContact: '',
+      siteAddress: '',
+      startDate: '',
+      expectedCompletionDate: '',
+      foundationSystem: 'Standard/RR foundation',
+      estimatedBudget: 0,
+      projectManager: '',
+      description: '',
+    });
+    this.showProjectForm.set(true);
+  }
+
+  protected openEditProject(project: Project): void {
+    this.formError.set('');
+    this.editingProjectId.set(project.id);
+    Object.assign(this.projectForm, {
+      projectCode: project.projectCode,
+      name: project.name,
+      clientName: project.clientName,
+      clientContact: '',
+      siteAddress: project.siteAddress || '',
+      startDate: (project.startDate || '').slice(0, 10),
+      expectedCompletionDate: (project.expectedCompletionDate || '').slice(0, 10),
+      foundationSystem: project.foundationSystem || 'Standard/RR foundation',
+      estimatedBudget: Number(project.estimatedBudget || 0),
+      projectManager: project.projectManager || '',
+      description: project.description || '',
+    });
     this.showProjectForm.set(true);
   }
 
   protected closeProjectForm(): void {
     this.showProjectForm.set(false);
+    this.editingProjectId.set(null);
+  }
+
+  protected saveProject(): void {
+    if (this.editingProjectId()) this.updateProject();
+    else this.createProject();
+  }
+
+  private updateProject(): void {
+    const id = this.editingProjectId();
+    if (!id || this.isSubmitting()) return;
+    if (!this.projectForm.name.trim() || !this.projectForm.clientName.trim() || this.projectForm.estimatedBudget < 0) {
+      this.formError.set('Project name, client name, and a valid budget are required.');
+      return;
+    }
+    const duplicate = this.projects().some(
+      (project) =>
+        project.id !== id &&
+        project.name.trim().toLowerCase() === this.projectForm.name.trim().toLowerCase(),
+    );
+    if (duplicate) {
+      this.formError.set('A project with this name already exists.');
+      return;
+    }
+    const current = this.projects().find((project) => project.id === id);
+    const completion = this.projectForm.expectedCompletionDate || new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().slice(0, 10);
+    this.isSubmitting.set(true);
+    this.projectsService
+      .updateProject(id, {
+        name: this.projectForm.name.trim(),
+        clientName: this.projectForm.clientName.trim(),
+        siteAddress: this.projectForm.siteAddress,
+        startDate: this.projectForm.startDate || null,
+        expectedCompletionDate: completion,
+        estimatedBudget: Number(this.projectForm.estimatedBudget),
+        status: this.toApiProjectStatus(current),
+        progressPercent: this.calculateProjectProgress(current?.constructionPhases),
+        projectManager: this.projectForm.projectManager,
+        description: this.projectForm.description,
+      })
+      .subscribe({
+        next: () => {
+          const foundation = this.projectForm.foundationSystem;
+          this.projects.update((list) =>
+            list.map((project) =>
+              project.id === id
+                ? {
+                    ...project,
+                    name: this.projectForm.name.trim(),
+                    clientName: this.projectForm.clientName.trim(),
+                    siteAddress: this.projectForm.siteAddress,
+                    startDate: this.projectForm.startDate,
+                    expectedCompletionDate: completion,
+                    estimatedBudget: Number(this.projectForm.estimatedBudget),
+                    projectManager: this.projectForm.projectManager,
+                    description: this.projectForm.description,
+                    foundationSystem: foundation,
+                  }
+                : project,
+            ),
+          );
+          const selected = this.projects().find((project) => project.id === id) ?? null;
+          this.selectedProject.set(selected);
+          if (selected && foundation !== this.selectedFoundationSystem()) this.applyFoundationSystem(foundation);
+          this.isSubmitting.set(false);
+          this.showProjectForm.set(false);
+          this.editingProjectId.set(null);
+          this.moduleNotice.set('Project details saved.');
+        },
+        error: (err: unknown) => {
+          this.isSubmitting.set(false);
+          this.formError.set(err instanceof Error ? err.message : 'Could not update the project.');
+        },
+      });
+  }
+
+  private toApiProjectStatus(project?: Project): string {
+    if (!project) return 'Planning';
+    const raw = project.status || this.projectDisplayStatus(project);
+    if (raw === 'In Progress') return 'Active';
+    if (raw === 'Not Started') return 'Planning';
+    if (raw === 'On Hold') return 'OnHold';
+    if (['Planning', 'Active', 'OnHold', 'Delayed', 'Completed', 'Archived'].includes(raw)) return raw;
+    return 'Planning';
   }
 
   protected createProject(): void {

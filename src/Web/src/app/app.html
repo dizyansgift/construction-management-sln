@@ -57,23 +57,41 @@
       @if (moduleNotice()) {<div class="notice">{{ moduleNotice() }}</div>}
       @if (activeSection() === 'Projects') {
         <div class="project-board">
-          <div class="project-pager">
-            <button type="button" class="pager-btn" [disabled]="projectPage() === 0" (click)="shiftProjectPage(-1)">‹</button>
-            <div class="project-chip-row">
-              @for (project of pagedProjects(); track project.id) {
-                <button type="button" class="project-chip" [class.active]="selectedProject()?.id === project.id" (click)="selectProject(project.name)">
-                  <strong>{{ project.name }}</strong>
-                  <small>{{ project.clientName || 'No client' }}</small>
-                </button>
-              } @empty {
-                <p class="workspace-description">No projects yet. Use ＋ New project to create one.</p>
+          <section class="project-index">
+            <div class="project-index-head">
+              <div>
+                <h2>Projects</h2>
+                <p>{{ projects().length }} in portfolio</p>
+              </div>
+              @if (projects().length > projectsPerPage) {
+                <div class="pager-inline">
+                  <button type="button" class="pager-btn" [disabled]="projectPage() === 0" (click)="shiftProjectPage(-1)">‹</button>
+                  <span>{{ projectPage() + 1 }} / {{ projectPageCount() }}</span>
+                  <button type="button" class="pager-btn" [disabled]="projectPage() >= projectPageCount() - 1" (click)="shiftProjectPage(1)">›</button>
+                </div>
               }
             </div>
-            <button type="button" class="pager-btn" [disabled]="projectPage() >= projectPageCount() - 1" (click)="shiftProjectPage(1)">›</button>
-            @if (projects().length) {
-              <span class="pager-meta">{{ projectPage() + 1 }} / {{ projectPageCount() }}</span>
+            @if (pagedProjects().length) {
+              <div class="project-index-row head">
+                <span>Project</span>
+                <span>Client</span>
+                <span>Progress</span>
+                <span>Status</span>
+                <span></span>
+              </div>
+              @for (project of pagedProjects(); track project.id) {
+                <button type="button" class="project-index-row" [class.active]="selectedProject()?.id === project.id" (click)="selectProject(project.name)">
+                  <strong>{{ project.name }}</strong>
+                  <span>{{ project.clientName || '—' }}</span>
+                  <span>{{ calculateProjectProgress(project.constructionPhases) }}%</span>
+                  <span>{{ projectDisplayStatus(project) }}</span>
+                  <span class="row-edit" (click)="$event.stopPropagation(); openEditProject(project)">Edit</span>
+                </button>
+              }
+            } @else {
+              <p class="workspace-description">No projects yet. Use ＋ New project to create one.</p>
             }
-          </div>
+          </section>
 
         @if (selectedProject()) {
           <section class="project-detail-panel">
@@ -83,6 +101,7 @@
                 <div class="project-title-row">
                   <h2>{{ selectedProject()?.name }}</h2>
                   <span class="status-pill">{{ projectDisplayStatus(selectedProject()!) }}</span>
+                  <button type="button" class="secondary" (click)="openEditProject(selectedProject()!)">Edit project</button>
                 </div>
                 <div class="project-meta">
                   <span>Client: {{ selectedProject()?.clientName || '—' }}</span>
@@ -128,79 +147,54 @@
                     <h3><span class="phase-letter">{{ activePhase()?.id }}</span> Phase {{ activePhase()?.id }} - {{ activePhase()?.name }}</h3>
                     <p>{{ activePhase()?.description }}</p>
                   </div>
-                  <div class="add-activity-row">
-                    <input name="newActivityName" [(ngModel)]="newActivityName" placeholder="Activity name">
-                    <button class="primary" type="button" (click)="addActivity()">＋ Add activity</button>
-                  </div>
                 </div>
 
                 <div class="activity-table-wrap">
-                  <table class="activity-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Activity</th>
-                        <th>Status</th>
-                        <th>Progress</th>
-                        <th>Planned start</th>
-                        <th>Planned end</th>
-                        <th>Actual start</th>
-                        <th>Actual end</th>
-                        <th>Assigned</th>
-                        <th>Est. (₹)</th>
-                        <th>Actual (₹)</th>
-                        <th>Notes</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (activity of selectedPhaseActivities(); track activity.id) {
-                        <tr [class.optional-row]="activity.isOptional || activity.isConditional" [class.editing]="editingActivityId() === activity.id">
-                          <td>{{ $index + 1 }}</td>
-                          <td>
-                            @if (editingActivityId() === activity.id) {
-                              <input [ngModel]="activity.name" (ngModelChange)="updateActivityDetails(activity.id, { name: $event })">
-                            } @else {
-                              <strong>{{ activity.name }}</strong>
-                              @if (activity.isConditional || activity.isOptional) {<small>{{ activity.isConditional ? 'Conditional' : 'Optional' }}</small>}
-                            }
-                          </td>
-                          <td>
-                            <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
-                              <option>Not Started</option>
-                              <option>In Progress</option>
-                              <option>Completed</option>
-                              <option>On Hold</option>
-                              <option>Delayed</option>
-                            </select>
-                          </td>
-                          <td>
-                            <div class="mini-progress">
-                              <i [style.width.%]="activity.progress"></i>
-                            </div>
-                            <span>{{ activity.progress }}%</span>
-                            @if (editingActivityId() === activity.id) {
-                              <input type="range" min="0" max="100" step="5" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)">
-                            }
-                          </td>
-                          <td><input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"></td>
-                          <td><input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></td>
-                          <td><input type="date" [ngModel]="activity.actualStartDate" (ngModelChange)="updateActivityDetails(activity.id, { actualStartDate: $event })"></td>
-                          <td><input type="date" [ngModel]="activity.actualEndDate" (ngModelChange)="updateActivityDetails(activity.id, { actualEndDate: $event })"></td>
-                          <td><input [ngModel]="activity.assignedTo" (ngModelChange)="updateActivityDetails(activity.id, { assignedTo: $event })" placeholder="—"></td>
-                          <td><input type="number" min="0" [ngModel]="activity.estimatedCost" (ngModelChange)="updateActivityDetails(activity.id, { estimatedCost: +$event })"></td>
-                          <td><input type="number" min="0" [ngModel]="activity.actualCost" (ngModelChange)="updateActivityDetails(activity.id, { actualCost: +$event })"></td>
-                          <td><input [ngModel]="activity.notes" (ngModelChange)="updateActivityDetails(activity.id, { notes: $event })" placeholder="—"></td>
-                          <td class="row-actions">
-                            <button type="button" class="icon-btn" title="Edit" (click)="toggleActivityEdit(activity.id)">✎</button>
-                            <button type="button" class="icon-btn danger" title="Remove" (click)="removeActivity(activity.id)">✕</button>
-                          </td>
-                        </tr>
-                      } @empty {
-                        <tr><td colspan="13" class="empty-cell">No activities in this phase. Add one to start planning.</td></tr>
-                      }
-                    </tbody>
-                  </table>
+                  <div class="activity-line head">
+                    <span>#</span>
+                    <span>Activity</span>
+                    <span>Status</span>
+                    <span>Progress</span>
+                    <span>Planned</span>
+                    <span>Actual</span>
+                    <span>Cost (₹)</span>
+                  </div>
+                  @for (activity of selectedPhaseActivities(); track activity.id) {
+                    <div class="activity-line" [class.optional-row]="activity.isOptional || activity.isConditional">
+                      <span class="activity-index">{{ $index + 1 }}</span>
+                      <div class="activity-main">
+                        <strong>{{ activity.name }}</strong>
+                        <input [ngModel]="activity.assignedTo" (ngModelChange)="updateActivityDetails(activity.id, { assignedTo: $event })" placeholder="Assigned to">
+                        <input [ngModel]="activity.notes" (ngModelChange)="updateActivityDetails(activity.id, { notes: $event })" placeholder="Notes">
+                      </div>
+                      <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
+                        <option>Not Started</option>
+                        <option>In Progress</option>
+                        <option>Completed</option>
+                        <option>On Hold</option>
+                        <option>Delayed</option>
+                      </select>
+                      <label class="progress-stack">
+                        <div class="mini-progress"><i [style.width.%]="activity.progress"></i></div>
+                        <span>{{ activity.progress }}%</span>
+                        <input type="range" min="0" max="100" step="5" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)">
+                      </label>
+                      <div class="pair-stack">
+                        <label>Start<input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"></label>
+                        <label>End<input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></label>
+                      </div>
+                      <div class="pair-stack">
+                        <label>Start<input type="date" [ngModel]="activity.actualStartDate" (ngModelChange)="updateActivityDetails(activity.id, { actualStartDate: $event })"></label>
+                        <label>End<input type="date" [ngModel]="activity.actualEndDate" (ngModelChange)="updateActivityDetails(activity.id, { actualEndDate: $event })"></label>
+                      </div>
+                      <div class="pair-stack">
+                        <label>Est.<input type="number" min="0" [ngModel]="activity.estimatedCost" (ngModelChange)="updateActivityDetails(activity.id, { estimatedCost: +$event })"></label>
+                        <label>Actual<input type="number" min="0" [ngModel]="activity.actualCost" (ngModelChange)="updateActivityDetails(activity.id, { actualCost: +$event })"></label>
+                      </div>
+                    </div>
+                  } @empty {
+                    <p class="empty-cell">No activities in this phase.</p>
+                  }
                 </div>
 
                 <div class="phase-cashflow">
@@ -263,7 +257,7 @@
     }
   </section>
   @if (showProjectForm()) {
-    <div class="modal-backdrop" (click)="closeProjectForm()"><section class="modal" (click)="$event.stopPropagation()"><div class="modal-header"><div><p class="eyebrow">PROJECT SETUP</p><h2>Create new project</h2></div><button class="close" (click)="closeProjectForm()">×</button></div><p class="modal-copy">Create a project record. It will appear on the dashboard immediately.</p><form (ngSubmit)="createProject()"><div class="form-grid"><label>Project name *<input name="name" [(ngModel)]="projectForm.name" placeholder="Riverside Medical Pavilion"></label><label>Project code (auto-generated)<input name="projectCode" [(ngModel)]="projectForm.projectCode" readonly></label><label>Client name *<input name="clientName" [(ngModel)]="projectForm.clientName" placeholder="Client or company"></label><label>Site location<input name="siteAddress" [(ngModel)]="projectForm.siteAddress" placeholder="City, state"></label><label>Planned start date<input name="startDate" type="date" [(ngModel)]="projectForm.startDate"></label><label>Expected completion date<input name="expectedCompletionDate" type="date" [(ngModel)]="projectForm.expectedCompletionDate"></label><label>Foundation / structural system<select name="foundationSystem" [(ngModel)]="projectForm.foundationSystem">@for (option of foundationOptionsList(); track option) {<option [value]="option">{{ option }}</option>}</select></label><label>Estimated budget *<input name="budget" type="number" min="0" [(ngModel)]="projectForm.estimatedBudget"></label><label>Project manager<input name="manager" [(ngModel)]="projectForm.projectManager" placeholder="Assigned manager"></label></div>@if (formError()) {<p class="form-error">{{ formError() }}</p>}<div class="form-actions"><button type="button" class="secondary" (click)="closeProjectForm()">Cancel</button><button type="submit" class="primary" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Saving...' : 'Create project' }}</button></div></form></section></div>
+    <div class="modal-backdrop" (click)="closeProjectForm()"><section class="modal" (click)="$event.stopPropagation()"><div class="modal-header"><div><p class="eyebrow">PROJECT SETUP</p><h2>{{ editingProjectId() ? 'Edit project' : 'Create new project' }}</h2></div><button class="close" (click)="closeProjectForm()">×</button></div><p class="modal-copy">{{ editingProjectId() ? 'Update this project record. Changes are saved to the database.' : 'Create a project record. It will appear on the dashboard immediately.' }}</p><form (ngSubmit)="saveProject()"><div class="form-grid"><label>Project name *<input name="name" [(ngModel)]="projectForm.name" placeholder="Riverside Medical Pavilion"></label><label>Project code (auto-generated)<input name="projectCode" [(ngModel)]="projectForm.projectCode" readonly></label><label>Client name *<input name="clientName" [(ngModel)]="projectForm.clientName" placeholder="Client or company"></label><label>Site location<input name="siteAddress" [(ngModel)]="projectForm.siteAddress" placeholder="City, state"></label><label>Planned start date<input name="startDate" type="date" [(ngModel)]="projectForm.startDate"></label><label>Expected completion date<input name="expectedCompletionDate" type="date" [(ngModel)]="projectForm.expectedCompletionDate"></label><label>Foundation / structural system<select name="foundationSystem" [(ngModel)]="projectForm.foundationSystem">@for (option of foundationOptionsList(); track option) {<option [value]="option">{{ option }}</option>}</select></label><label>Estimated budget *<input name="budget" type="number" min="0" [(ngModel)]="projectForm.estimatedBudget"></label><label>Project manager<input name="manager" [(ngModel)]="projectForm.projectManager" placeholder="Assigned manager"></label></div>@if (formError()) {<p class="form-error">{{ formError() }}</p>}<div class="form-actions"><button type="button" class="secondary" (click)="closeProjectForm()">Cancel</button><button type="submit" class="primary" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Saving...' : editingProjectId() ? 'Save changes' : 'Create project' }}</button></div></form></section></div>
   }
   @if (showBoqForm()) {
     <div class="modal-backdrop" (click)="closeBoqForm()"><section class="modal" (click)="$event.stopPropagation()"><div class="modal-header"><div><p class="eyebrow">ESTIMATION</p><h2>Add BOQ item</h2></div><button class="close" (click)="closeBoqForm()">×</button></div><p class="modal-copy">Assign this estimate to a project before saving it.</p><form (ngSubmit)="createBoqItem()"><div class="form-grid"><label>Project *<select name="project" [(ngModel)]="boqForm.project"><option value="" disabled>Select a project</option>@for (project of projectOptions(); track project) {<option [value]="project">{{ project }}</option>}</select></label><label>Category<select name="category" [(ngModel)]="boqForm.category"><option>Concrete</option><option>Reinforcement</option><option>Masonry</option><option>Electrical</option><option>Plumbing</option><option>Finishes</option><option>Labour</option></select></label><label>Unit<input name="unit" [(ngModel)]="boqForm.unit" placeholder="m³"></label><label class="wide-field">Description *<input name="description" [(ngModel)]="boqForm.description" placeholder="Foundation concrete C30"></label><label>Quantity *<input name="quantity" type="number" min="0.01" [(ngModel)]="boqForm.quantity"></label><label>Estimated rate *<input name="rate" type="number" min="0" [(ngModel)]="boqForm.rate"></label></div>@if (boqFormError()) {<p class="form-error">{{ boqFormError() }}</p>}<div class="form-actions"><button type="button" class="secondary" (click)="closeBoqForm()">Cancel</button><button type="submit" class="primary">Add BOQ item</button></div></form></section></div>
