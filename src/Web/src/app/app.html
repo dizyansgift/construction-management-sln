@@ -163,32 +163,19 @@
                   </article>
                 </div>
 
-                <div class="activity-table-wrap">
-                  <table class="activity-table">
-                    <thead>
-                      <tr>
-                        <th>Activity</th>
-                        <th>Status</th>
-                        <th>Progress</th>
-                        <th>Planned<small>Start / End</small></th>
-                        <th>Actual<small>Start / End</small></th>
-                        <th>Assigned</th>
-                        <th>Cost<small>Est. / Actual</small></th>
-                        <th>Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (activity of selectedPhaseActivities(); track activity.id) {
-                        <tr [class.optional-row]="activity.isOptional || activity.isConditional">
-                          <td>
-                            <div class="activity-name-group">
-                              <strong>{{ activity.name }}</strong>
-                              @if (activity.isConditional || activity.isOptional) {
-                                <small>{{ activity.isConditional ? 'Conditional' : 'Optional' }}</small>
-                              }
-                            </div>
-                          </td>
-                          <td>
+                <div class="activity-list">
+                  @for (activity of selectedPhaseActivities(); track activity.id) {
+                    <article class="activity-card" [class.optional-row]="activity.isOptional || activity.isConditional">
+                      <header class="activity-card-head">
+                        <div class="activity-name-group">
+                          <strong>{{ activity.name }}</strong>
+                          @if (activity.isConditional || activity.isOptional) {
+                            <small>{{ activity.isConditional ? 'Conditional' : 'Optional' }}</small>
+                          }
+                        </div>
+                        <div class="activity-card-status">
+                          <label>
+                            <span>Status</span>
                             <select [ngModel]="activity.status" (ngModelChange)="updateActivityStatus(activity.id, $event)">
                               <option>Not Started</option>
                               <option>In Progress</option>
@@ -196,22 +183,43 @@
                               <option>On Hold</option>
                               <option>Delayed</option>
                             </select>
-                          </td>
-                          <td>
+                          </label>
+                          <label class="activity-progress-field">
+                            <span>Progress</span>
                             <div class="progress-cell">
                               <input type="range" min="0" max="100" step="5" class="progress-slider" [style.background]="progressTrackStyle(activity.progress)" [ngModel]="activity.progress" (ngModelChange)="updateActivityProgress(activity.id, +$event)" />
                               <span class="progress-value">{{ activity.progress }}%</span>
                             </div>
-                          </td>
-                          <td><div class="activity-edit-fields dual-field"><label><span>Start</span><input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"></label><label><span>End</span><input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></label></div></td>
-                          <td><div class="activity-edit-fields dual-field"><label><span>Start</span><input type="date" [ngModel]="activity.actualStartDate" (ngModelChange)="updateActivityDetails(activity.id, { actualStartDate: $event })"></label><label><span>End</span><input type="date" [ngModel]="activity.actualEndDate" (ngModelChange)="updateActivityDetails(activity.id, { actualEndDate: $event })"></label></div></td>
-                          <td><input class="activity-edit-input" [ngModel]="activity.assignedTo" (ngModelChange)="updateActivityDetails(activity.id, { assignedTo: $event })"></td>
-                          <td><div class="activity-edit-fields dual-field"><label><span>Est.</span><input type="number" min="0" [ngModel]="activity.estimatedCost" (ngModelChange)="updateActivityDetails(activity.id, { estimatedCost: +$event })"></label><label><span>Actual</span><input type="number" min="0" [ngModel]="activity.actualCost" (ngModelChange)="updateActivityDetails(activity.id, { actualCost: +$event })"></label></div></td>
-                          <td><textarea class="activity-edit-input" rows="2" [ngModel]="activity.notes" (ngModelChange)="updateActivityDetails(activity.id, { notes: $event })"></textarea></td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
+                          </label>
+                        </div>
+                      </header>
+                      <div class="activity-card-grid">
+                        <div class="activity-edit-fields dual-field">
+                          <span class="activity-field-label">Planned</span>
+                          <label><span>Start</span><input type="date" [ngModel]="activity.plannedStartDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedStartDate: $event })"></label>
+                          <label><span>End</span><input type="date" [ngModel]="activity.plannedEndDate" (ngModelChange)="updateActivityDetails(activity.id, { plannedEndDate: $event })"></label>
+                        </div>
+                        <div class="activity-edit-fields dual-field">
+                          <span class="activity-field-label">Actual</span>
+                          <label><span>Start</span><input type="date" [ngModel]="activity.actualStartDate" (ngModelChange)="updateActivityDetails(activity.id, { actualStartDate: $event })"></label>
+                          <label><span>End</span><input type="date" [ngModel]="activity.actualEndDate" (ngModelChange)="updateActivityDetails(activity.id, { actualEndDate: $event })"></label>
+                        </div>
+                        <label class="activity-assigned-field">
+                          <span class="activity-field-label">Assigned</span>
+                          <input class="activity-edit-input" [ngModel]="activity.assignedTo" (ngModelChange)="updateActivityDetails(activity.id, { assignedTo: $event })">
+                        </label>
+                        <div class="activity-edit-fields dual-field">
+                          <span class="activity-field-label">Cost</span>
+                          <label><span>Est.</span><input type="number" min="0" [ngModel]="activity.estimatedCost" (ngModelChange)="updateActivityDetails(activity.id, { estimatedCost: +$event })"></label>
+                          <label><span>Actual</span><input type="number" min="0" [ngModel]="activity.actualCost" (ngModelChange)="updateActivityDetails(activity.id, { actualCost: +$event })"></label>
+                        </div>
+                      </div>
+                      <label class="activity-notes-field">
+                        <span class="activity-field-label">Notes</span>
+                        <textarea class="activity-edit-input" rows="2" [ngModel]="activity.notes" (ngModelChange)="updateActivityDetails(activity.id, { notes: $event })"></textarea>
+                      </label>
+                    </article>
+                  }
                 </div>
 
                 <div class="phase-cashflow">
