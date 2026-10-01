@@ -73,6 +73,10 @@ export class App implements OnInit {
   protected readonly showEmployeeHistory = signal(false);
   protected readonly selectedProject = signal<Project | null>(null);
   protected readonly selectedPhaseId = signal('A');
+  protected readonly projectPage = signal(0);
+  protected readonly projectsPerPage = 6;
+  protected readonly editingActivityId = signal<string | null>(null);
+  protected newActivityName = '';
   protected readonly selectedFoundationSystem = signal('Standard/RR foundation');
   protected readonly constructionPhases = signal<ConstructionPhase[]>(createDefaultConstructionPhases());
   protected readonly selectedEmployee = signal<{
@@ -439,6 +443,9 @@ export class App implements OnInit {
     this.constructionPhases.set(project?.constructionPhases ?? createDefaultConstructionPhases());
     this.selectedFoundationSystem.set(project?.foundationSystem || 'Standard/RR foundation');
     this.selectedPhaseId.set('A');
+    this.editingActivityId.set(null);
+    const index = this.projects().findIndex((item) => item.id === project?.id);
+    if (index >= 0) this.projectPage.set(Math.floor(index / this.projectsPerPage));
   }
 
   protected applyFoundationSystem(system: string): void {
@@ -513,6 +520,113 @@ export class App implements OnInit {
 
   protected setSelectedPhase(phaseId: string): void {
     this.selectedPhaseId.set(phaseId);
+    this.editingActivityId.set(null);
+    this.newActivityName = '';
+  }
+
+  protected pagedProjects(): Project[] {
+    const start = this.projectPage() * this.projectsPerPage;
+    return this.projects().slice(start, start + this.projectsPerPage);
+  }
+
+  protected projectPageCount(): number {
+    return Math.max(1, Math.ceil(this.projects().length / this.projectsPerPage));
+  }
+
+  protected shiftProjectPage(delta: number): void {
+    const next = this.projectPage() + delta;
+    if (next < 0 || next >= this.projectPageCount()) return;
+    this.projectPage.set(next);
+  }
+
+  protected toggleActivityEdit(activityId: string): void {
+    this.editingActivityId.set(this.editingActivityId() === activityId ? null : activityId);
+  }
+
+  protected addActivity(): void {
+    const phase = this.activePhase();
+    const name = this.newActivityName.trim();
+    if (!phase || !name) {
+      this.moduleNotice.set('Enter an activity name before adding it.');
+      return;
+    }
+    const sequence = phase.activities.length + 1;
+    const activity: ConstructionActivity = {
+      id: `${phase.id}${Date.now()}`,
+      phaseId: phase.id,
+      name,
+      sequence,
+      status: 'Not Started',
+      progress: 0,
+      plannedStartDate: '',
+      plannedEndDate: '',
+      actualStartDate: '',
+      actualEndDate: '',
+      assignedTo: '',
+      estimatedCost: 0,
+      actualCost: 0,
+      notes: '',
+      isOptional: false,
+      isConditional: false,
+      isEnabled: true,
+    };
+    const nextPhases = this.constructionPhases().map((item) =>
+      item.id === phase.id ? { ...item, activities: [...item.activities, activity] } : item,
+    );
+    this.constructionPhases.set(nextPhases);
+    this.persistConstructionPlan(nextPhases);
+    this.editingActivityId.set(activity.id);
+    this.newActivityName = '';
+  }
+
+  protected removeActivity(activityId: string): void {
+    const nextPhases = this.constructionPhases().map((phase) => ({
+      ...phase,
+      activities: phase.activities.filter((activity) => activity.id !== activityId),
+    }));
+    this.constructionPhases.set(nextPhases);
+    this.persistConstructionPlan(nextPhases);
+    if (this.editingActivityId() === activityId) this.editingActivityId.set(null);
+  }
+
+  protected projectPlanStart(): string {
+    const dates = this.constructionPhases()
+      .flatMap((phase) => phase.activities)
+      .map((activity) => activity.plannedStartDate || activity.actualStartDate)
+      .filter(Boolean)
+      .sort();
+    return dates[0] ? this.formatScheduleDay(dates[0]) : '—';
+  }
+
+  protected projectPlanEnd(): string {
+    const dates = this.constructionPhases()
+      .flatMap((phase) => phase.activities)
+      .map((activity) => activity.plannedEndDate || activity.actualEndDate)
+      .filter(Boolean)
+      .sort();
+    return dates.length ? this.formatScheduleDay(dates[dates.length - 1]) : '—';
+  }
+
+  protected selectedProjectCashOut(): number {
+    const name = this.selectedProject()?.name;
+    if (!name) return 0;
+    const expenses = this.expenses().filter((expense) => expense.project === name).reduce((sum, expense) => sum + expense.amount, 0);
+    const outgoing = this.payments()
+      .filter((payment) => payment.project === name && !this.paymentIsCashIn(payment))
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    return expenses + outgoing;
+  }
+
+  protected selectedProjectCashIn(): number {
+    const name = this.selectedProject()?.name;
+    if (!name) return 0;
+    return this.payments()
+      .filter((payment) => payment.project === name && this.paymentIsCashIn(payment))
+      .reduce((sum, payment) => sum + payment.amount, 0);
+  }
+
+  protected selectedProjectNet(): number {
+    return this.selectedProjectCashIn() - this.selectedProjectCashOut();
   }
 
   protected updateActivityStatus(activityId: string, value: string): void {
@@ -542,7 +656,7 @@ export class App implements OnInit {
 
   protected updateActivityDetails(
     activityId: string,
-    changes: Partial<Pick<ConstructionActivity, 'plannedStartDate' | 'plannedEndDate' | 'actualStartDate' | 'actualEndDate' | 'assignedTo' | 'estimatedCost' | 'actualCost' | 'notes'>>,
+    changes: Partial<Pick<ConstructionActivity, 'name' | 'plannedStartDate' | 'plannedEndDate' | 'actualStartDate' | 'actualEndDate' | 'assignedTo' | 'estimatedCost' | 'actualCost' | 'notes'>>,
   ): void {
     const nextPhases: ConstructionPhase[] = this.constructionPhases().map((phase) => ({
       ...phase,
