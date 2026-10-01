@@ -9,8 +9,10 @@ public sealed class InventoryService(ConstructionDbContext dbContext) : IInvento
 {
     public async Task<IReadOnlyList<MaterialListItem>> GetMaterialsAsync(CancellationToken cancellationToken = default)
     {
-        return await dbContext.Materials.AsNoTracking().OrderBy(material => material.Name)
-            .Select(material => ToListItem(material)).ToListAsync(cancellationToken);
+        var materials = await dbContext.Materials.AsNoTracking()
+            .OrderBy(material => material.Name)
+            .ToListAsync(cancellationToken);
+        return materials.Select(ToListItem).ToList();
     }
 
     public async Task<MaterialListItem> ReceiveMaterialAsync(ReceiveMaterialRequest request, CancellationToken cancellationToken = default)
@@ -28,7 +30,7 @@ public sealed class InventoryService(ConstructionDbContext dbContext) : IInvento
             existing.MinimumStock = request.MinimumStock;
             existing.UnitPrice = request.UnitPrice;
             existing.SupplierName = request.SupplierName;
-            existing.UpdatedUtc = DateTime.UtcNow;
+            existing.UpdatedUtc = DateTimeUtc.From(DateTime.UtcNow);
             await dbContext.SaveChangesAsync(cancellationToken);
             return ToListItem(existing);
         }
