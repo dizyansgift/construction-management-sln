@@ -66,4 +66,24 @@ public static class PostgresConnection
             TrustServerCertificate = true,
         }.ConnectionString;
     }
+
+    public static string? Host(string? connection)
+    {
+        if (string.IsNullOrWhiteSpace(connection)) return null;
+        try
+        {
+            return new NpgsqlConnectionStringBuilder(Normalize(connection)).Host;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static bool IsRenderHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host)) return false;
+        return host.Contains("render.com", StringComparison.OrdinalIgnoreCase)
+            || host.StartsWith("dpg-", StringComparison.OrdinalIgnoreCase);
+    }
 }

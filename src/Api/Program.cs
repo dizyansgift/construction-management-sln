@@ -29,24 +29,33 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddOpenApi();
+
+var postgres = PostgresConnection.Resolve(
+    Environment.GetEnvironmentVariable("ConnectionStrings__ConstructionDatabase"),
+    Environment.GetEnvironmentVariable("DATABASE_URL"),
+    Environment.GetEnvironmentVariable("POSTGRES_URL"),
+    builder.Configuration.GetConnectionString("ConstructionDatabase"),
+    builder.Configuration["Database:ConnectionString"]);
+var databaseHost = PostgresConnection.Host(postgres) ?? "none";
 var databaseProvider = builder.Configuration["Database:Provider"];
-if (string.IsNullOrWhiteSpace(databaseProvider))
+if (builder.Environment.IsProduction())
 {
-    databaseProvider = "Sqlite";
+    databaseProvider = "Postgres";
+    if (string.IsNullOrWhiteSpace(postgres) || !PostgresConnection.IsRenderHost(databaseHost))
+    {
+        throw new InvalidOperationException(
+            "Production must use the Render Postgres database. On construction-management-api set ConnectionStrings__ConstructionDatabase from construction-management-db (or DATABASE_URL). Current host: " + databaseHost + ".");
+    }
 }
+else if (string.IsNullOrWhiteSpace(databaseProvider))
+{
+    databaseProvider = PostgresConnection.LooksLikePostgres(postgres) ? "Postgres" : "Sqlite";
+}
+
 builder.Services.AddDbContext<ConstructionDbContext>(options =>
 {
-    var configured = builder.Configuration.GetConnectionString("ConstructionDatabase");
-    var postgres = PostgresConnection.Resolve(
-        configured,
-        Environment.GetEnvironmentVariable("DATABASE_URL"),
-        Environment.GetEnvironmentVariable("POSTGRES_URL"),
-        builder.Configuration["Database:ConnectionString"]);
-    var usePostgres = databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase)
-        || PostgresConnection.LooksLikePostgres(postgres)
-        || PostgresConnection.LooksLikePostgres(configured);
-
-    if (usePostgres)
+    if (databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase)
+        || PostgresConnection.LooksLikePostgres(postgres))
     {
         if (string.IsNullOrWhiteSpace(postgres))
         {
@@ -61,11 +70,7 @@ builder.Services.AddDbContext<ConstructionDbContext>(options =>
     }
     else
     {
-        if (builder.Environment.IsProduction())
-        {
-            throw new InvalidOperationException(
-                "Production cannot use SQLite because the container disk is wiped on every deploy. Set Database__Provider=Postgres and ConnectionStrings__ConstructionDatabase or DATABASE_URL.");
-        }
+        var configured = builder.Configuration.GetConnectionString("ConstructionDatabase");
         var sqlite = string.IsNullOrWhiteSpace(configured) || PostgresConnection.LooksLikePostgres(configured)
             ? "Data Source=construction.db"
             : configured;
@@ -109,16 +114,8 @@ var databaseEngine = "unknown";
 
 var app = builder.Build();
 
-// Log chosen database provider and whether a connection string is present (helpful for deployments)
-{
-    var dbProvider = databaseProvider;
-    var conn = PostgresConnection.Resolve(
-        builder.Configuration.GetConnectionString("ConstructionDatabase"),
-        Environment.GetEnvironmentVariable("DATABASE_URL")) ?? builder.Configuration.GetConnectionString("ConstructionDatabase");
-    var hasConn = !string.IsNullOrWhiteSpace(conn);
-    Console.WriteLine($"[startup] Database provider: {dbProvider}");
-    Console.WriteLine(hasConn ? "[startup] Database connection string is present." : "[startup] Database connection string is NOT present.");
-}
+Console.WriteLine($"[startup] Database provider: {databaseProvider}");
+Console.WriteLine($"[startup] Database host: {databaseHost}");
 
 if (app.Environment.IsDevelopment())
 {
@@ -129,13 +126,20 @@ app.UseCors("Clients");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "2026-10-01-ui2", database = databaseEngine }));
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    version = "2026-10-01-renderdb",
+    database = databaseEngine,
+    databaseHost
+}));
 app.MapGet("/", () => Results.Ok(new
 {
     service = "construction-management-api",
     status = "ok",
-    version = "2026-10-01-ui2",
+    version = "2026-10-01-renderdb",
     database = databaseEngine,
+    databaseHost,
     commit = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT"),
     endpoints = new[]
     {
