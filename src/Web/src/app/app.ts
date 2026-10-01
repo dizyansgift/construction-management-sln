@@ -423,7 +423,8 @@ export class App implements OnInit {
     else if (section === 'Materials') this.openMaterialForm();
     else if (section === 'Expenses') this.openExpenseForm();
     else if (section === 'Payments') this.openPaymentForm();
-    else this.action(section);
+    else if (section === 'Labour') this.openAttendanceForm();
+    else if (section === 'Reports') this.generateReport('Project summary');
   }
 
   protected onProjectFilter(name: string): void {
@@ -727,10 +728,10 @@ export class App implements OnInit {
           this.visibleProjects().map((project) => [
             project.name,
             project.clientName,
-            project.status,
+            this.projectDisplayStatus(project),
             currency.format(this.projectBudget(project)),
             currency.format(this.projectActualCost(project)),
-            `${project.progressPercent}%`,
+            `${this.calculateProjectProgress(project.constructionPhases)}%`,
           ]),
         );
         break;
@@ -1139,6 +1140,20 @@ export class App implements OnInit {
     this.showExpenseForm.set(false);
   }
 
+  protected openAttendanceForm(): void {
+    this.attendanceFormError.set('');
+    this.attendanceForm.project =
+      this.selectedProjectFilter() !== 'All projects'
+        ? this.selectedProjectFilter()
+        : this.attendanceForm.project || this.projectOptions()[0] || '';
+    this.attendanceForm.date = this.todayIso();
+    this.showAttendanceForm.set(true);
+  }
+
+  protected closeAttendanceForm(): void {
+    this.showAttendanceForm.set(false);
+  }
+
   protected openPaymentForm(): void {
     this.paymentFormError.set('');
     if (!this.paymentForm.project) this.paymentForm.project = this.projectOptions()[0] ?? '';
@@ -1267,9 +1282,7 @@ export class App implements OnInit {
     const records = this.labourRecords()
       .filter((record) => record.name === employee.name && record.project === employee.project)
       .sort((a, b) => (a.date < b.date ? 1 : -1));
-    if (!records.length) {
-      return [{ period: 'No records yet', project: employee.project, work: 'Record attendance to build a work history.', status: employee.attendance }];
-    }
+    if (!records.length) return [];
     return records.map((record) => ({
       period: record.date,
       project: record.project,
@@ -1525,12 +1538,72 @@ export class App implements OnInit {
     });
   }
 
-  protected averageProgress(projects: { progressPercent: number }[]): number {
+  protected averageProgress(projects: Project[]): number {
     return projects.length === 0
       ? 0
       : Math.round(
-          projects.reduce((total, project) => total + project.progressPercent, 0) / projects.length,
+          projects.reduce((total, project) => total + this.calculateProjectProgress(project.constructionPhases), 0) /
+            projects.length,
         );
+  }
+
+  protected todayIso(): string {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+
+  protected todayLabel(): string {
+    return new Date().toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  protected todayShortLabel(): string {
+    return new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  protected todaysSchedule(): { id: string; when: string; activity: string; project: string; status: string }[] {
+    const today = this.todayIso();
+    const items: { id: string; when: string; activity: string; project: string; status: string }[] = [];
+    for (const project of this.visibleProjects()) {
+      for (const phase of project.constructionPhases ?? []) {
+        for (const activity of phase.activities.filter((item) => item.isEnabled)) {
+          const start = activity.plannedStartDate || activity.actualStartDate;
+          const end = activity.plannedEndDate || activity.actualEndDate || start;
+          const dueToday = start === today || end === today;
+          const inRange = !!start && !!end && today >= start && today <= end;
+          const active = activity.status === 'In Progress' || activity.status === 'Delayed';
+          if (!dueToday && !inRange && !active) continue;
+          items.push({
+            id: `${project.id}-${activity.id}`,
+            when: this.formatScheduleDay(start || today),
+            activity: activity.name,
+            project: project.name,
+            status: activity.status,
+          });
+        }
+      }
+    }
+    return items.slice(0, 8);
+  }
+
+  private formatScheduleDay(iso: string): string {
+    if (!iso) return 'Today';
+    const parsed = new Date(`${iso.slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return iso;
+    return parsed.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  }
+
+  protected pulseProjects(): Project[] {
+    return this.visibleProjects().slice(0, 7);
+  }
+
+  protected pulseBarHeight(project: Project): number {
+    return Math.max(8, this.calculateProjectProgress(project.constructionPhases));
   }
   protected chartProjects(): Project[] {
     return this.visibleProjects()
