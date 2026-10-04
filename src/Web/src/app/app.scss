@@ -247,3 +247,22 @@
 .empty-cell { padding:24px !important; color:var(--muted); text-align:center; }
 .phase-cashflow { margin-top:16px; }
 @media (max-width:1100px) { .projects-workspace,.project-board { display:grid; grid-template-columns:1fr; } .project-hero,.phase-header { flex-direction:column; align-items:flex-start; } .overall-progress { width:100%; } .project-kpi-grid { grid-template-columns:1fr 1fr; } .activity-line,.project-index-row { grid-template-columns:1fr 1fr; } .activity-index { display:none; } }
+
+.form-grid label { align-content:start; }
+.field-error { display:block; color:#b42318; font-size:12px; font-weight:600; line-height:1.35; }
+.field-hint { display:block; color:#5d6f66; font-size:12px; font-weight:500; line-height:1.4; }
+.form-hint { margin:0; padding:10px 12px; background:#f3f8f4; border:1px solid #d7e4da; border-radius:8px; color:#3d5348; font-size:12px; line-height:1.45; }
+.form-error { margin:12px 0 0; color:#b42318; font-size:13px; font-weight:600; }
+input.invalid, select.invalid, textarea.invalid { border-color:#d92d20 !important; box-shadow:0 0 0 3px #d92d2014; }
+.dashboard-toolbar { display:flex; justify-content:space-between; align-items:end; gap:16px; flex-wrap:wrap; padding:22px 0 6px; }
+.dashboard-toolbar h1 { margin:4px 0; font:700 30px 'Inter',sans-serif; letter-spacing:-.03em; }
+.project-toolbar { display:flex; align-items:end; gap:12px; flex-wrap:wrap; padding:0 18px 14px; }
+.search-label { display:grid; gap:6px; color:var(--muted); font-size:11px; font-weight:700; }
+.search-input { min-width:min(340px, 72vw); border:1px solid #d2ddd5; border-radius:6px; padding:10px 12px; background:#fff; color:var(--ink); }
+.empty-inline { margin:0; padding:18px; color:var(--muted); }
+.app-shell.dark-theme .search-input,
+.app-shell.dark-theme .form-hint { background:#192823; color:var(--ink); border-color:var(--line); }
+.app-shell.dark-theme input.invalid,
+.app-shell.dark-theme select.invalid,
+.app-shell.dark-theme textarea.invalid { background:#2a1c1c; }
+@media (max-width:800px) { .dashboard-toolbar,.project-toolbar { align-items:stretch; } .search-input,.project-toolbar .filter { width:100%; } }

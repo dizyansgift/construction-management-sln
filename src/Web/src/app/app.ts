@@ -69,6 +69,9 @@ export class App implements OnInit {
   protected readonly materialFormError = signal('');
   protected readonly showAttendanceForm = signal(false);
   protected readonly attendanceFormError = signal('');
+  protected readonly fieldErrors = signal<Record<string, string>>({});
+  protected readonly formHint = signal('');
+  protected readonly projectSearch = signal('');
   protected readonly darkMode = signal(false);
   protected readonly showEmployeeHistory = signal(false);
   protected readonly selectedProject = signal<Project | null>(null);
@@ -176,18 +179,63 @@ export class App implements OnInit {
     status: 'Present',
   };
 
+  protected fieldError(key: string): string {
+    return this.fieldErrors()[key] ?? '';
+  }
+
+  protected clearFieldError(key: string): void {
+    if (!this.fieldErrors()[key]) return;
+    const next = { ...this.fieldErrors() };
+    delete next[key];
+    this.fieldErrors.set(next);
+  }
+
+  private publishErrors(errors: Record<string, string>, banner: { set(value: string): void }): boolean {
+    this.fieldErrors.set(errors);
+    banner.set(Object.keys(errors).length ? 'Some fields need attention before this can be saved.' : '');
+    return Object.keys(errors).length === 0;
+  }
+
+  private preferredProjectName(): string {
+    if (this.selectedProjectFilter() !== 'All projects') return this.selectedProjectFilter();
+    return this.selectedProject()?.name || this.projectOptions()[0] || '';
+  }
+
+  protected projectContext(name: string): string {
+    const project = this.projects().find((item) => item.name === name);
+    if (!project) return '';
+    return [project.projectCode, project.clientName, project.siteAddress, project.projectManager].filter(Boolean).join(' · ');
+  }
+
+  private phasesForProjectName(name: string): ConstructionPhase[] {
+    const project = this.projects().find((item) => item.name === name);
+    if (project?.constructionPhases?.length) return project.constructionPhases;
+    if (project) return this.parseConstructionPlan(project);
+    return [];
+  }
+
+  private isPhoneOrEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || /^[+]?[\d\s()-]{7,20}$/.test(value);
+  }
+
   protected createAttendance(): void {
     const form = this.attendanceForm;
-    if (!form.project || !form.name.trim() || !form.role.trim() || !form.date) {
-      this.attendanceFormError.set('Project, worker name, role and date are required.');
-      return;
+    const errors: Record<string, string> = {};
+    if (!form.project) errors['attendance.project'] = 'Select the project this attendance belongs to.';
+    if (!form.name.trim()) errors['attendance.name'] = 'Enter the worker’s name.';
+    else if (form.name.trim().length < 2) errors['attendance.name'] = 'Worker name must be at least 2 characters.';
+    if (!form.role.trim()) errors['attendance.role'] = 'Enter the worker’s role, such as mason or carpenter.';
+    if (!form.date) errors['attendance.date'] = 'Choose the attendance date.';
+    else if (form.date > this.todayIso()) errors['attendance.date'] = 'Attendance date cannot be in the future.';
+    if (Number(form.wage) < 0 || Number.isNaN(Number(form.wage))) errors['attendance.wage'] = 'Daily wage cannot be negative.';
+    if (Number(form.overtimeHours) < 0 || Number.isNaN(Number(form.overtimeHours))) {
+      errors['attendance.overtime'] = 'Overtime hours cannot be negative.';
+    } else if (Number(form.overtimeHours) > 16) {
+      errors['attendance.overtime'] = 'Overtime hours cannot be more than 16 in a day.';
     }
-
     const projectId = this.projects().find((p) => p.name === form.project)?.id;
-    if (!projectId) {
-      this.attendanceFormError.set('Select a saved project before recording attendance.');
-      return;
-    }
+    if (form.project && !projectId) errors['attendance.project'] = 'Select a saved project before recording attendance.';
+    if (!this.publishErrors(errors, this.attendanceFormError) || !projectId) return;
 
     const display = {
       id: String(Date.now()),
@@ -254,6 +302,7 @@ export class App implements OnInit {
   protected setAuthMode(mode: 'login' | 'signup'): void {
     this.authMode.set(mode);
     this.authError.set('');
+    this.fieldErrors.set({});
   }
 
   protected submitAuth(): void {
@@ -261,24 +310,21 @@ export class App implements OnInit {
     const email = this.authForm.email.trim();
     const password = this.authForm.password;
     const displayName = this.authForm.displayName.trim();
-    if (!email || !password) {
-      this.authError.set('Email and password are required.');
-      return;
-    }
+    const errors: Record<string, string> = {};
     if (this.authMode() === 'signup') {
-      if (!displayName) {
-        this.authError.set('Name is required to create an account.');
-        return;
-      }
-      if (password.length < 8) {
-        this.authError.set('Password must be at least 8 characters.');
-        return;
-      }
-      if (password !== this.authForm.confirmPassword) {
-        this.authError.set('Passwords do not match.');
-        return;
-      }
+      if (!displayName) errors['auth.name'] = 'Enter your full name.';
+      else if (displayName.length < 2) errors['auth.name'] = 'Name must be at least 2 characters.';
     }
+    if (!email) errors['auth.email'] = 'Enter your email address.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors['auth.email'] = 'Enter a valid email address, such as you@company.com.';
+    if (!password) errors['auth.password'] = 'Enter your password.';
+    else if (this.authMode() === 'signup' && password.length < 8) {
+      errors['auth.password'] = 'Password must be at least 8 characters.';
+    }
+    if (this.authMode() === 'signup' && password !== this.authForm.confirmPassword) {
+      errors['auth.confirm'] = 'Passwords do not match. Enter the same password in both fields.';
+    }
+    if (!this.publishErrors(errors, this.authError)) return;
 
     this.authBusy.set(true);
     this.authError.set('');
@@ -436,8 +482,20 @@ export class App implements OnInit {
 
   protected onProjectFilter(name: string): void {
     this.selectedProjectFilter.set(name);
+    this.projectPage.set(0);
     if (name === 'All projects') return;
     this.selectProject(name);
+  }
+
+  protected onProjectSearch(value: string): void {
+    this.projectSearch.set(value);
+    this.projectPage.set(0);
+  }
+
+  protected clearProjectLookup(): void {
+    this.projectSearch.set('');
+    this.selectedProjectFilter.set('All projects');
+    this.projectPage.set(0);
   }
 
   protected selectProject(projectName: string): void {
@@ -447,7 +505,7 @@ export class App implements OnInit {
     this.selectedFoundationSystem.set(project?.foundationSystem || 'Standard/RR foundation');
     this.selectedPhaseId.set('A');
     this.editingActivityId.set(null);
-    const index = this.projects().findIndex((item) => item.id === project?.id);
+    const index = this.searchedProjects().findIndex((item) => item.id === project?.id);
     if (index >= 0) this.projectPage.set(Math.floor(index / this.projectsPerPage));
   }
 
@@ -527,13 +585,25 @@ export class App implements OnInit {
     this.newActivityName = '';
   }
 
+  protected searchedProjects(): Project[] {
+    const query = this.projectSearch().trim().toLowerCase();
+    return this.visibleProjects().filter((project) => {
+      if (!query) return true;
+      const haystack = [project.name, project.clientName, project.projectCode, project.siteAddress, project.projectManager]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
   protected pagedProjects(): Project[] {
     const start = this.projectPage() * this.projectsPerPage;
-    return this.projects().slice(start, start + this.projectsPerPage);
+    return this.searchedProjects().slice(start, start + this.projectsPerPage);
   }
 
   protected projectPageCount(): number {
-    return Math.max(1, Math.ceil(this.projects().length / this.projectsPerPage));
+    return Math.max(1, Math.ceil(this.searchedProjects().length / this.projectsPerPage));
   }
 
   protected shiftProjectPage(delta: number): void {
@@ -551,6 +621,14 @@ export class App implements OnInit {
     const name = this.newActivityName.trim();
     if (!phase || !name) {
       this.moduleNotice.set('Enter an activity name before adding it.');
+      return;
+    }
+    if (name.length < 2) {
+      this.moduleNotice.set('Activity name must be at least 2 characters.');
+      return;
+    }
+    if (phase.activities.some((activity) => activity.name.trim().toLowerCase() === name.toLowerCase())) {
+      this.moduleNotice.set(`“${name}” is already on this phase. Use a different activity name.`);
       return;
     }
     const sequence = phase.activities.length + 1;
@@ -661,6 +739,21 @@ export class App implements OnInit {
     activityId: string,
     changes: Partial<Pick<ConstructionActivity, 'name' | 'plannedStartDate' | 'plannedEndDate' | 'actualStartDate' | 'actualEndDate' | 'assignedTo' | 'estimatedCost' | 'actualCost' | 'notes'>>,
   ): void {
+    const current = this.constructionPhases().flatMap((phase) => phase.activities).find((activity) => activity.id === activityId);
+    if (!current) return;
+    const next = { ...current, ...changes };
+    if (next.plannedStartDate && next.plannedEndDate && next.plannedEndDate < next.plannedStartDate) {
+      this.moduleNotice.set('Planned end date must be on or after the planned start date.');
+      return;
+    }
+    if (next.actualStartDate && next.actualEndDate && next.actualEndDate < next.actualStartDate) {
+      this.moduleNotice.set('Actual end date must be on or after the actual start date.');
+      return;
+    }
+    if (Number(next.estimatedCost) < 0 || Number(next.actualCost) < 0) {
+      this.moduleNotice.set('Estimated and actual costs cannot be negative.');
+      return;
+    }
     const nextPhases: ConstructionPhase[] = this.constructionPhases().map((phase) => ({
       ...phase,
       activities: phase.activities.map((activity) =>
@@ -779,10 +872,22 @@ export class App implements OnInit {
 
   protected onExpenseProjectChange(name: string): void {
     this.expenseForm.project = name;
+    this.clearFieldError('expense.project');
     const phases = this.phasesForExpenseProject();
     if (!phases.some((phase) => phase.id === this.expenseForm.phaseId)) {
       this.expenseForm.phaseId = '';
       this.expenseForm.activityId = '';
+    }
+    if (!this.expenseForm.vendor.trim()) {
+      const vendor = this.expenses().find((expense) => expense.project === name && expense.vendor)?.vendor;
+      if (vendor) {
+        this.expenseForm.vendor = vendor;
+        this.formHint.set(`Vendor filled from the latest expense on ${name}.`);
+      } else {
+        this.formHint.set(this.projectContext(name) ? `Using ${name}. ${this.projectContext(name)}` : '');
+      }
+    } else {
+      this.formHint.set(this.projectContext(name) ? `Using ${name}. ${this.projectContext(name)}` : '');
     }
   }
 
@@ -794,10 +899,168 @@ export class App implements OnInit {
   }
 
   protected phasesForExpenseProject(): ConstructionPhase[] {
-    const project = this.projects().find((item) => item.name === this.expenseForm.project);
-    if (project?.constructionPhases?.length) return project.constructionPhases;
-    if (project) return this.parseConstructionPlan(project);
-    return this.constructionPhases();
+    return this.phasesForProjectName(this.expenseForm.project);
+  }
+
+  protected phasesForPaymentProject(): ConstructionPhase[] {
+    return this.phasesForProjectName(this.paymentForm.project);
+  }
+
+  protected onPaymentProjectChange(name: string): void {
+    this.paymentForm.project = name;
+    this.clearFieldError('payment.project');
+    const phases = this.phasesForPaymentProject();
+    if (!phases.some((phase) => phase.id === this.paymentForm.phaseId)) this.paymentForm.phaseId = '';
+    this.applyPaymentDefaults();
+  }
+
+  protected onPaymentTypeChange(type: string): void {
+    this.paymentForm.type = type;
+    this.applyPaymentDefaults();
+  }
+
+  private applyPaymentDefaults(): void {
+    const project = this.projects().find((item) => item.name === this.paymentForm.project);
+    if (!project) {
+      this.formHint.set('');
+      return;
+    }
+    if (this.paymentForm.type === 'Customer payment') {
+      this.paymentForm.party = project.clientName || this.paymentForm.party;
+      this.formHint.set(project.clientName ? `Party filled with the client on ${project.name}.` : this.projectContext(project.name));
+    } else if (!this.paymentForm.party.trim() || this.paymentForm.party === project.clientName) {
+      const vendor = this.expenses().find((expense) => expense.project === project.name && expense.vendor)?.vendor;
+      if (vendor) {
+        this.paymentForm.party = vendor;
+        this.formHint.set(`Party filled from the latest vendor on ${project.name}.`);
+      } else {
+        this.formHint.set(this.projectContext(project.name));
+      }
+    } else {
+      this.formHint.set(this.projectContext(project.name));
+    }
+    const suggested = this.suggestedInvoice(project);
+    if (!this.paymentForm.invoice.trim() || /-\d{3}$/.test(this.paymentForm.invoice.trim())) {
+      this.paymentForm.invoice = suggested;
+    }
+  }
+
+  private suggestedInvoice(project: Project): string {
+    const prefix = project.projectCode || 'PAY';
+    const count = this.payments().filter((payment) => payment.project === project.name).length + 1;
+    return `${prefix}-${String(count).padStart(3, '0')}`;
+  }
+
+  protected onBoqProjectChange(name: string): void {
+    this.boqForm.project = name;
+    this.clearFieldError('boq.project');
+    this.applyBoqDefaults();
+  }
+
+  protected onBoqCategoryChange(category: string): void {
+    this.boqForm.category = category;
+    const units: Record<string, string> = {
+      Concrete: 'm³',
+      Reinforcement: 'kg',
+      Masonry: 'm²',
+      Electrical: 'points',
+      Plumbing: 'points',
+      Finishes: 'm²',
+      Labour: 'days',
+    };
+    this.boqForm.unit = units[category] ?? this.boqForm.unit;
+    this.applyBoqDefaults();
+  }
+
+  private applyBoqDefaults(): void {
+    const match = this.boqItems().find(
+      (item) => item.project === this.boqForm.project && item.category === this.boqForm.category,
+    );
+    if (match && (!this.boqForm.rate || this.boqForm.rate <= 0)) {
+      this.boqForm.rate = match.rate;
+      this.boqForm.unit = match.unit || this.boqForm.unit;
+      this.formHint.set(`Unit and rate filled from the latest ${match.category} item on ${this.boqForm.project}.`);
+      return;
+    }
+    this.formHint.set(this.projectContext(this.boqForm.project));
+  }
+
+  protected onMaterialProjectChange(name: string): void {
+    this.materialForm.project = name;
+    this.clearFieldError('material.project');
+    this.applyMaterialDefaults();
+  }
+
+  protected onMaterialNameChange(name: string): void {
+    this.materialForm.name = name;
+    this.clearFieldError('material.name');
+    this.applyMaterialDefaults();
+  }
+
+  protected materialNameOptions(): string[] {
+    const project = this.materialForm.project;
+    return [...new Set(this.materials().filter((item) => !project || item.project === project).map((item) => item.name))].sort();
+  }
+
+  private applyMaterialDefaults(): void {
+    const project = this.materialForm.project;
+    const name = this.materialForm.name.trim().toLowerCase();
+    const match = name
+      ? this.materials().find((item) => item.project === project && item.name.toLowerCase() === name)
+      : undefined;
+    if (match) {
+      this.materialForm.category = match.category || this.materialForm.category;
+      this.materialForm.unit = match.unit || this.materialForm.unit;
+      this.materialForm.minimum = match.minimum;
+      this.materialForm.price = match.price;
+      this.materialForm.supplier = match.supplier;
+      this.formHint.set(`Category, unit, price, and supplier filled from ${match.name} on ${project}.`);
+      return;
+    }
+    if (!this.materialForm.supplier.trim()) {
+      const supplier = this.materials().find((item) => item.project === project && item.supplier)?.supplier;
+      if (supplier) {
+        this.materialForm.supplier = supplier;
+        this.formHint.set(`Supplier filled from the latest receipt on ${project}.`);
+        return;
+      }
+    }
+    this.formHint.set(this.projectContext(project));
+  }
+
+  protected workerOptions(): string[] {
+    const project = this.attendanceForm.project;
+    return [...new Set(this.labourRecords().filter((record) => !project || record.project === project).map((record) => record.name))].sort();
+  }
+
+  protected onAttendanceProjectChange(name: string): void {
+    this.attendanceForm.project = name;
+    this.clearFieldError('attendance.project');
+    this.applyWorkerDefaults();
+  }
+
+  protected onAttendanceNameChange(name: string): void {
+    this.attendanceForm.name = name;
+    this.clearFieldError('attendance.name');
+    this.applyWorkerDefaults();
+  }
+
+  private applyWorkerDefaults(): void {
+    const name = this.attendanceForm.name.trim().toLowerCase();
+    if (!name || !this.attendanceForm.project) {
+      this.formHint.set(this.projectContext(this.attendanceForm.project));
+      return;
+    }
+    const latest = this.labourRecords()
+      .filter((record) => record.project === this.attendanceForm.project && record.name.toLowerCase() === name)
+      .sort((left, right) => (left.date < right.date ? 1 : -1))[0];
+    if (!latest) {
+      this.formHint.set(this.projectContext(this.attendanceForm.project));
+      return;
+    }
+    this.attendanceForm.role = latest.role;
+    this.attendanceForm.wage = latest.wage;
+    this.formHint.set(`Role and daily wage filled from ${latest.name}’s last record on ${this.attendanceForm.project}.`);
   }
 
   protected expenseActivityOptions(): ConstructionActivity[] {
@@ -1053,16 +1316,10 @@ export class App implements OnInit {
   }
 
   protected projectOptions(): string[] {
-    return [
-      ...new Set([
-        ...this.projects().map((project) => project.name),
-        ...this.boqItems().map((item) => item.project),
-        ...this.expenses().map((expense) => expense.project),
-        ...this.payments().map((payment) => payment.project),
-        ...this.labourRoster().map((worker) => worker.project),
-        ...this.materials().map((material) => material.project),
-      ]),
-    ].sort();
+    return this.projects()
+      .map((project) => project.name)
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right));
   }
 
   protected nextProjectCode(): string {
@@ -1139,7 +1396,9 @@ export class App implements OnInit {
 
   protected openExpenseForm(): void {
     this.expenseFormError.set('');
-    if (!this.expenseForm.project) this.expenseForm.project = this.projectOptions()[0] ?? '';
+    this.fieldErrors.set({});
+    if (!this.expenseForm.project) this.expenseForm.project = this.preferredProjectName();
+    if (this.expenseForm.project) this.onExpenseProjectChange(this.expenseForm.project);
     this.showExpenseForm.set(true);
   }
 
@@ -1246,18 +1505,20 @@ export class App implements OnInit {
 
   protected createExpense(): void {
     const form = this.expenseForm;
-    if (
-      !form.project ||
-      !form.description.trim() ||
-      !form.vendor.trim() ||
-      form.amount <= 0 ||
-      !form.date
-    ) {
-      this.expenseFormError.set(
-        'Project, description, vendor, date, and an amount greater than zero are required.',
-      );
-      return;
+    const errors: Record<string, string> = {};
+    if (!form.project) errors['expense.project'] = 'Select the project this expense belongs to.';
+    else if (!this.projects().some((project) => project.name === form.project)) {
+      errors['expense.project'] = 'Select a saved project. Create the project first if it is not listed.';
     }
+    if (!form.description.trim()) errors['expense.description'] = 'Describe what this expense is for.';
+    else if (form.description.trim().length < 3) errors['expense.description'] = 'Description must be at least 3 characters.';
+    if (!form.vendor.trim()) errors['expense.vendor'] = 'Enter the vendor or payee.';
+    if (!form.amount || Number(form.amount) <= 0 || Number.isNaN(Number(form.amount))) {
+      errors['expense.amount'] = 'Enter an amount greater than zero.';
+    }
+    if (!form.date) errors['expense.date'] = 'Choose the expense date.';
+    else if (form.date > this.todayIso()) errors['expense.date'] = 'Expense date cannot be in the future.';
+    if (!this.publishErrors(errors, this.expenseFormError)) return;
 
     const expense = {
       category: form.category,
@@ -1324,11 +1585,10 @@ export class App implements OnInit {
 
   protected openAttendanceForm(): void {
     this.attendanceFormError.set('');
-    this.attendanceForm.project =
-      this.selectedProjectFilter() !== 'All projects'
-        ? this.selectedProjectFilter()
-        : this.attendanceForm.project || this.projectOptions()[0] || '';
+    this.fieldErrors.set({});
+    this.attendanceForm.project = this.preferredProjectName();
     this.attendanceForm.date = this.todayIso();
+    this.applyWorkerDefaults();
     this.showAttendanceForm.set(true);
   }
 
@@ -1338,16 +1598,18 @@ export class App implements OnInit {
 
   protected openPaymentForm(): void {
     this.paymentFormError.set('');
-    if (!this.paymentForm.project) this.paymentForm.project = this.projectOptions()[0] ?? '';
+    this.fieldErrors.set({});
+    if (!this.paymentForm.project) this.paymentForm.project = this.preferredProjectName();
+    if (this.paymentForm.project) this.onPaymentProjectChange(this.paymentForm.project);
     this.showPaymentForm.set(true);
   }
 
   protected openMaterialForm(): void {
     this.materialFormError.set('');
-    this.materialForm.project = this.selectedProjectFilter() !== 'All projects'
-      ? this.selectedProjectFilter()
-      : (this.materialForm.project || this.projectOptions()[0] || '');
+    this.fieldErrors.set({});
+    this.materialForm.project = this.preferredProjectName();
     if (!this.materialForm.quantity) this.materialForm.quantity = 1;
+    this.applyMaterialDefaults();
     this.showMaterialForm.set(true);
   }
 
@@ -1357,19 +1619,24 @@ export class App implements OnInit {
 
   protected receiveMaterial(): void {
     const form = this.materialForm;
-    if (
-      !form.name.trim() ||
-      !form.project ||
-      !form.supplier.trim() ||
-      form.quantity <= 0 ||
-      form.minimum < 0 ||
-      form.price < 0
-    ) {
-      this.materialFormError.set(
-        'Material name, project, supplier, quantity, reorder level, and unit price are required.',
-      );
-      return;
+    const errors: Record<string, string> = {};
+    if (!form.name.trim()) errors['material.name'] = 'Enter the material name.';
+    else if (form.name.trim().length < 2) errors['material.name'] = 'Material name must be at least 2 characters.';
+    if (!form.project) errors['material.project'] = 'Select the project receiving this stock.';
+    else if (!this.projects().some((project) => project.name === form.project)) {
+      errors['material.project'] = 'Select a saved project before receiving materials.';
     }
+    if (!form.supplier.trim()) errors['material.supplier'] = 'Enter the supplier name.';
+    if (!form.quantity || Number(form.quantity) <= 0 || Number.isNaN(Number(form.quantity))) {
+      errors['material.quantity'] = 'Enter a quantity greater than zero.';
+    }
+    if (Number(form.minimum) < 0 || Number.isNaN(Number(form.minimum))) {
+      errors['material.minimum'] = 'Reorder level cannot be negative.';
+    }
+    if (Number(form.price) < 0 || Number.isNaN(Number(form.price))) {
+      errors['material.price'] = 'Unit price cannot be negative.';
+    }
+    if (!this.publishErrors(errors, this.materialFormError)) return;
 
     const received = {
       name: form.name.trim(),
@@ -1383,7 +1650,7 @@ export class App implements OnInit {
     };
     const materialProjectId = this.projects().find((project) => project.name === received.project)?.id;
     if (!materialProjectId) {
-      this.materialFormError.set('Select a saved project before receiving materials.');
+      this.publishErrors({ 'material.project': 'Select a saved project before receiving materials.' }, this.materialFormError);
       return;
     }
 
@@ -1491,26 +1758,23 @@ export class App implements OnInit {
 
   protected createPayment(): void {
     const form = this.paymentForm;
-    if (
-      !form.project ||
-      !form.party.trim() ||
-      !form.invoice.trim() ||
-      form.amount <= 0 ||
-      !form.due
-    ) {
-      this.paymentFormError.set(
-        'Project, party, invoice number, due date, and an amount greater than zero are required.',
-      );
-      return;
+    const errors: Record<string, string> = {};
+    if (!form.project) errors['payment.project'] = 'Select the project this payment belongs to.';
+    else if (!this.projects().some((project) => project.name === form.project)) {
+      errors['payment.project'] = 'Select a saved project before recording a payment.';
     }
-    if (
-      this.payments().some(
-        (payment) => payment.invoice.toLowerCase() === form.invoice.trim().toLowerCase(),
-      )
+    if (!form.party.trim()) errors['payment.party'] = 'Enter the party or payee.';
+    if (!form.invoice.trim()) errors['payment.invoice'] = 'Enter an invoice or reference number.';
+    else if (
+      this.payments().some((payment) => payment.invoice.toLowerCase() === form.invoice.trim().toLowerCase())
     ) {
-      this.paymentFormError.set('An invoice or reference with this number already exists.');
-      return;
+      errors['payment.invoice'] = 'An invoice or reference with this number already exists.';
     }
+    if (!form.amount || Number(form.amount) <= 0 || Number.isNaN(Number(form.amount))) {
+      errors['payment.amount'] = 'Enter an amount greater than zero.';
+    }
+    if (!form.due) errors['payment.due'] = 'Choose a due date.';
+    if (!this.publishErrors(errors, this.paymentFormError)) return;
 
     const payment = {
       project: form.project,
@@ -1567,7 +1831,9 @@ export class App implements OnInit {
 
   protected openBoqForm(): void {
     this.boqFormError.set('');
-    if (!this.boqForm.project) this.boqForm.project = this.projectOptions()[0] ?? '';
+    this.fieldErrors.set({});
+    if (!this.boqForm.project) this.boqForm.project = this.preferredProjectName();
+    if (this.boqForm.project) this.applyBoqDefaults();
     this.showBoqForm.set(true);
   }
 
@@ -1576,15 +1842,21 @@ export class App implements OnInit {
   }
 
   protected createBoqItem(): void {
-    if (
-      !this.boqForm.project ||
-      !this.boqForm.description.trim() ||
-      this.boqForm.quantity <= 0 ||
-      this.boqForm.rate < 0
-    ) {
-      this.boqFormError.set('Project, description, quantity, and a valid rate are required.');
-      return;
+    const errors: Record<string, string> = {};
+    if (!this.boqForm.project) errors['boq.project'] = 'Select the project this estimate belongs to.';
+    else if (!this.projects().some((project) => project.name === this.boqForm.project)) {
+      errors['boq.project'] = 'Select a saved project before adding a BOQ item.';
     }
+    if (!this.boqForm.description.trim()) errors['boq.description'] = 'Describe the BOQ item.';
+    else if (this.boqForm.description.trim().length < 3) errors['boq.description'] = 'Description must be at least 3 characters.';
+    if (!this.boqForm.unit.trim()) errors['boq.unit'] = 'Enter a unit, such as m³, kg, or days.';
+    if (!this.boqForm.quantity || Number(this.boqForm.quantity) <= 0 || Number.isNaN(Number(this.boqForm.quantity))) {
+      errors['boq.quantity'] = 'Enter a quantity greater than zero.';
+    }
+    if (this.boqForm.rate === null || Number.isNaN(Number(this.boqForm.rate)) || Number(this.boqForm.rate) < 0) {
+      errors['boq.rate'] = 'Enter a rate of zero or more.';
+    }
+    if (!this.publishErrors(errors, this.boqFormError)) return;
 
     const newItem = {
       project: this.boqForm.project,
@@ -1641,6 +1913,8 @@ export class App implements OnInit {
 
   protected openProjectForm(): void {
     this.formError.set('');
+    this.fieldErrors.set({});
+    this.formHint.set('');
     this.editingProjectId.set(null);
     this.projectForm.projectCode = this.nextProjectCode();
     Object.assign(this.projectForm, {
@@ -1660,6 +1934,8 @@ export class App implements OnInit {
 
   protected openEditProject(project: Project): void {
     this.formError.set('');
+    this.fieldErrors.set({});
+    this.formHint.set('');
     this.editingProjectId.set(project.id);
     Object.assign(this.projectForm, {
       projectCode: project.projectCode,
@@ -1690,19 +1966,7 @@ export class App implements OnInit {
   private updateProject(): void {
     const id = this.editingProjectId();
     if (!id || this.isSubmitting()) return;
-    if (!this.projectForm.name.trim() || !this.projectForm.clientName.trim() || this.projectForm.estimatedBudget < 0) {
-      this.formError.set('Project name, client name, and a valid budget are required.');
-      return;
-    }
-    const duplicate = this.projects().some(
-      (project) =>
-        project.id !== id &&
-        project.name.trim().toLowerCase() === this.projectForm.name.trim().toLowerCase(),
-    );
-    if (duplicate) {
-      this.formError.set('A project with this name already exists.');
-      return;
-    }
+    if (!this.validateProjectForm()) return;
     const current = this.projects().find((project) => project.id === id);
     const completion = this.projectForm.expectedCompletionDate || new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().slice(0, 10);
     this.isSubmitting.set(true);
@@ -1767,25 +2031,7 @@ export class App implements OnInit {
 
   protected createProject(): void {
     if (this.isSubmitting()) return;
-    if (
-      !this.projectForm.name.trim() ||
-      !this.projectForm.clientName.trim() ||
-      this.projectForm.estimatedBudget < 0
-    ) {
-      this.formError.set('Project name, client name, and a valid budget are required.');
-      return;
-    }
-
-    const duplicate = this.projects().some(
-      (project) =>
-        (this.projectForm.projectCode.trim() &&
-          project.projectCode === this.projectForm.projectCode.trim()) ||
-        project.name.trim().toLowerCase() === this.projectForm.name.trim().toLowerCase(),
-    );
-    if (duplicate) {
-      this.formError.set('A project with this code or name already exists.');
-      return;
-    }
+    if (!this.validateProjectForm()) return;
 
     this.isSubmitting.set(true);
     const request = {
@@ -1797,7 +2043,7 @@ export class App implements OnInit {
       next: (project) => this.addProject(project),
       error: (err: Error) => {
         this.isSubmitting.set(false);
-        this.formError.set(err?.message || 'Hey User,Could not save the project to the database. Please try again.');
+        this.formError.set(err?.message || 'Could not save the project. Check the details and try again.');
       },
     });
   }
@@ -1834,6 +2080,33 @@ export class App implements OnInit {
       projectManager: '',
       description: '',
     });
+  }
+
+  private validateProjectForm(): boolean {
+    const form = this.projectForm;
+    const errors: Record<string, string> = {};
+    const name = form.name.trim();
+    const client = form.clientName.trim();
+    if (!name) errors['project.name'] = 'Enter a project name.';
+    else if (name.length < 3) errors['project.name'] = 'Project name must be at least 3 characters.';
+    if (!client) errors['project.client'] = 'Enter the client or company name.';
+    else if (client.length < 2) errors['project.client'] = 'Client name must be at least 2 characters.';
+    const contact = form.clientContact.trim();
+    if (contact && !this.isPhoneOrEmail(contact)) {
+      errors['project.contact'] = 'Enter a valid phone number or email for the client contact.';
+    }
+    if (form.startDate && form.expectedCompletionDate && form.expectedCompletionDate < form.startDate) {
+      errors['project.end'] = 'Expected completion must be on or after the planned start date.';
+    }
+    const budget = Number(form.estimatedBudget);
+    if (Number.isNaN(budget)) errors['project.budget'] = 'Enter a numeric estimated budget.';
+    else if (budget < 0) errors['project.budget'] = 'Estimated budget cannot be negative.';
+    const duplicate = name
+      && this.projects().some(
+        (project) => project.id !== this.editingProjectId() && project.name.trim().toLowerCase() === name.toLowerCase(),
+      );
+    if (duplicate) errors['project.name'] = 'A project with this name already exists. Choose a different name.';
+    return this.publishErrors(errors, this.formError);
   }
 
   protected averageProgress(projects: Project[]): number {
